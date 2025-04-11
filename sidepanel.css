@@ -1,0 +1,283 @@
+body {
+    position: relative;
+    font-family: sans-serif;
+    padding: 15px;
+    min-width: 350px; /* Adjust as needed */
+}
+
+h1 {
+    font-size: 1.2em;
+    margin-top: 0;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+#analyzeBtn {
+    padding: 8px 15px;
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+#status {
+    margin-bottom: 15px;
+    font-style: italic;
+    color: #555;
+}
+
+#results {
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+    display: none; /* Initially hidden */
+}
+
+#results h2, #results h3 {
+    font-size: 1.1em;
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+#adsList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#adsList li {
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+
+#adsList li div {
+    margin-bottom: 3px;
+    word-break: break-word;
+}
+
+#adsList li strong {
+    min-width: 80px; /* Align keys somewhat */
+    display: inline-block;
+}
+
+#pageInfo p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.close-button {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    font-size: 1.5em;
+    background: none;
+    border: none;
+    cursor: pointer; /* Might want to change to default if it does nothing */
+    padding: 0;
+    line-height: 1;
+    color: #666;
+    z-index: 10; /* Ensure it's above other content if needed */
+}
+
+/* Optional: Add hover effect */
+.close-button:hover {
+    color: #000;
+}
+
+.ad-media-container {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    max-width: 100%; /* Ensure it doesn't overflow the list item */
+    position: relative; /* Needed for absolute positioning of buttons */
+    border: 1px solid #ddd; /* Optional border */
+    background-color: #f9f9f9; /* Slight background */
+    min-height: 100px; /* Ensure container has some height even if media fails */
+    display: flex; /* Center content like text placeholder */
+    justify-content: center;
+    align-items: center;
+}
+
+.ad-media-container img,
+.ad-media-container video {
+    display: block; /* Ensure images/videos are block level */
+    margin: 0 auto; /* Center single media */
+}
+
+/* --- Carousel Styles --- */
+.carousel {
+    position: relative;
+    width: 100%;
+    overflow: hidden; /* Hide parts of non-active slides if needed */
+}
+
+.slides-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+.slides {
+    display: flex;
+    transition: transform 0.3s ease-in-out; /* Smooth slide transition */
+    width: 100%; /* Ensure slides div takes full width */
+}
+
+.slide {
+    min-width: 100%; /* Each slide takes full width */
+    box-sizing: border-box;
+    display: none; /* Hide slides by default */
+    justify-content: center;
+    align-items: center;
+    height: 200px; /* Match max-height of media */
+}
+
+.slide.active {
+    display: flex; /* Show the active slide */
+}
+
+.slide img,
+.slide video {
+    max-width: 100%;
+    max-height: 100%; /* Ensure media fits within slide height */
+    object-fit: contain;
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    z-index: 5;
+    border-radius: 3px;
+}
+
+.carousel-btn.prev {
+    left: 5px;
+}
+
+.carousel-btn.next {
+    right: 5px;
+}
+
+.carousel-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.carousel-indicators {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 5px;
+    z-index: 5;
+}
+
+.indicator {
+    width: 8px;
+    height: 8px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.indicator.active {
+    background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Video Play Icon --- */
+.video-wrapper {
+    position: relative;
+    display: inline-block; /* Or block, depending on layout needs */
+    cursor: pointer; /* Indicate it's interactive */
+    line-height: 0; /* Prevent extra space below video */
+    max-width: 100%;
+    max-height: 200px; /* Match media height */
+}
+
+.video-wrapper::after {
+    content: '\25B6'; /* Unicode play symbol */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px; /* Adjust size */
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 5px 10px 5px 15px; /* Adjust padding */
+    border-radius: 50%;
+    pointer-events: none; /* Allow clicks to pass through to the video */
+    transition: opacity 0.2s ease;
+    opacity: 1; /* Show by default */
+}
+
+/* Optionally hide icon when video is playing (requires JS interaction) */
+.video-wrapper.playing::after { 
+    opacity: 0; 
+}
+
+/* Make images clickable for modal */
+.ad-media-container img {
+    cursor: pointer;
+}
+
+
+/* --- Image Modal Styles --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 100; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.8); /* Black w/ opacity */
+}
+
+.modal-content {
+    margin: auto;
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    color: #bbb;
+    text-decoration: none;
+} 

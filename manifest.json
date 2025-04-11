@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "SpyDelta Competition Spy",
+  "version": "0.1.0",
+  "description": "Analyze the current page to find Facebook/Instagram links and check for Meta ads.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Analyze Page Ads"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+} 
