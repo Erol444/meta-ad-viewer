@@ -58,6 +58,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true; // Indicates that the response is sent asynchronously
   }
+  // --- NEW: Handle Get Ad Details Request ---
+  else if (message.action === "getAdDetails") {
+      const { adId, pageId } = message.data;
+      if (!adId || !pageId) {
+          console.error('Missing adId or pageId for getAdDetails');
+          sendResponse({ error: "Missing adId or pageId" });
+          return false; // Synchronous response
+      }
+
+      (async () => { // Use an async IIFE to handle async logic
+          try {
+              const currentScraper = await getScraperInstance();
+              const details = await currentScraper.getAdDetails(adId, pageId);
+              if (details) {
+                  sendResponse({ details: details });
+              } else {
+                  // If scraper returns null, it might mean not found or error during scrape
+                  sendResponse({ error: "Could not fetch ad details (may not exist or scraping issue)." });
+              }
+          } catch (error) {
+              console.error("Error fetching ad details in background:", error);
+              sendResponse({ error: `Failed to fetch ad details: ${error.message || error}` });
+          }
+      })();
+
+      return true; // Indicates asynchronous response
+  }
+  // --- END: Handle Get Ad Details Request ---
 });
 
 // --- Combined Scraping Logic ---

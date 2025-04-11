@@ -20,5 +20,15 @@
   },
   "side_panel": {
     "default_path": "sidepanel.html"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/fb_sprite.png",
+        "icons/fb_sprite_others.png",
+        "icons/sprite-network.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 } 

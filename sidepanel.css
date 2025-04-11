@@ -45,17 +45,15 @@ h1 {
 #adsList li {
     border: 1px solid #eee;
     padding: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     font-size: 0.9em;
 }
 
 #adsList li div {
-    margin-bottom: 3px;
     word-break: break-word;
 }
 
 #adsList li strong {
-    min-width: 80px; /* Align keys somewhat */
     display: inline-block;
 }
 
@@ -98,8 +96,8 @@ a:hover {
 }
 
 .ad-media-container {
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
     max-width: 100%; /* Ensure it doesn't overflow the list item */
     position: relative; /* Needed for absolute positioning of buttons */
     border: 1px solid #ddd; /* Optional border */
@@ -114,6 +112,16 @@ a:hover {
 .ad-media-container video {
     display: block; /* Ensure images/videos are block level */
     margin: 0 auto; /* Center single media */
+}
+
+/* Make images and videos clickable for modal, videos use default cursor */
+.ad-media-container img {
+    cursor: pointer;
+    max-height: 300px; /* Added max-height here too */
+}
+.ad-media-container video { /* Videos use default cursor */
+    cursor: default;
+    max-height: 300px; /* Added max-height here too */
 }
 
 /* --- Carousel Styles --- */
@@ -140,7 +148,7 @@ a:hover {
     display: none; /* Hide slides by default */
     justify-content: center;
     align-items: center;
-    height: 200px; /* Match max-height of media */
+    height: 300px; /* Match max-height of media */
 }
 
 .slide.active {
@@ -150,7 +158,7 @@ a:hover {
 .slide img,
 .slide video {
     max-width: 100%;
-    max-height: 100%; /* Ensure media fits within slide height */
+    max-height: 100%; /* Let this be 100% of the slide's height */
     object-fit: contain;
 }
 
@@ -203,42 +211,10 @@ a:hover {
     background-color: rgba(255, 255, 255, 0.7);
 }
 
-/* --- Video Play Icon --- */
-.video-wrapper {
-    position: relative;
-    display: inline-block; /* Or block, depending on layout needs */
-    cursor: pointer; /* Indicate it's interactive */
-    line-height: 0; /* Prevent extra space below video */
-    max-width: 100%;
-    max-height: 200px; /* Match media height */
-}
-
-.video-wrapper::after {
-    content: '\25B6'; /* Unicode play symbol */
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 40px; /* Adjust size */
-    color: rgba(255, 255, 255, 0.8);
-    background-color: rgba(0, 0, 0, 0.4);
-    padding: 5px 10px 5px 15px; /* Adjust padding */
-    border-radius: 50%;
-    pointer-events: none; /* Allow clicks to pass through to the video */
-    transition: opacity 0.2s ease;
-    opacity: 1; /* Show by default */
-}
-
-/* Optionally hide icon when video is playing (requires JS interaction) */
-.video-wrapper.playing::after { 
-    opacity: 0; 
-}
-
-/* Make images clickable for modal */
-.ad-media-container img {
-    cursor: pointer;
-}
-
+/* --- REMOVED Video Play Icon --- */
+/* .video-wrapper ... */
+/* .video-wrapper::after ... */
+/* .video-wrapper.playing::after ... */
 
 /* --- Image Modal Styles --- */
 .modal {
@@ -280,4 +256,202 @@ a:hover {
 .modal-close:focus {
     color: #bbb;
     text-decoration: none;
+}
+
+/* Style for video modal close button (can be same as image close) */
+.modal-close-video {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+}
+
+.modal-close-video:hover,
+.modal-close-video:focus {
+    color: #bbb;
+    text-decoration: none;
+}
+
+/* --- Ad Content Styling --- */
+.ad-headline {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.ad-body {
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.ad-cta-area {
+    display: flex;
+    justify-content: space-between; /* Push caption and CTA apart */
+    align-items: center;
+    margin-top: 10px;
+    padding: 8px;
+    border: 1px solid #f0f0f0;
+    background-color: #fafafa;
+    border-radius: 4px;
+}
+
+.ad-caption {
+    font-size: 0.9em;
+    color: #555;
+    flex-grow: 1; /* Allow caption to take available space */
+    margin-right: 10px; /* Space between caption and CTA */
+}
+
+.ad-cta-link {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.9em;
+    white-space: nowrap; /* Prevent button text wrapping */
+    transition: background-color 0.2s ease;
+}
+
+.ad-cta-link:hover {
+    background-color: #0056b3;
+    color: white; /* Ensure text remains white on hover */
+    text-decoration: none;
+}
+
+/* Style for CTA text without a link */
+.ad-cta-link span {
+     /* Adjust if needed, mostly inherits from .ad-cta-link */
+}
+
+/* --- NEW: Ad Header Styles --- */
+.ad-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Align items to the top */
+    margin-bottom: 10px; /* Space below header */
+    padding-bottom: 5px;
+    border-bottom: 1px dashed #eee; /* Separator like old meta */
+}
+
+.ad-header-left {
+    /* Takes up remaining space */
+    flex-grow: 1;
+    margin-right: 10px; /* Space between left and right */
+}
+
+.ad-header-left div {
+    margin-bottom: 3px; /* Space between ID and Duration */
+     font-size: 0.9em; /* Slightly smaller like meta */
+     color: #555;
+}
+.ad-header-left div:last-child {
+    margin-bottom: 0;
+}
+.ad-header-left a {
+     color: #007bff; /* Keep link color */
+}
+.ad-header-left strong {
+    color: #333; /* Make title slightly darker */
+    font-weight: bold;
+}
+
+
+.ad-header-right {
+    /* Align icons to the right, flex-start alignment from parent handles top */
+    text-align: right;
+    flex-shrink: 0; /* Prevent shrinking if icons wrap */
+}
+/* --- End Ad Header Styles --- */
+
+/* --- NEW: Transparency Button Style --- */
+.transparency-btn {
+    display: block; /* Make it block level to appear below icons */
+    margin-top: 5px; /* Space above the button */
+    padding: 3px 6px;
+    font-size: 0.8em;
+    cursor: pointer;
+    background-color: #e7f3ff;
+    border: 1px solid #abd0f5;
+    border-radius: 3px;
+    color: #0056b3;
+}
+.transparency-btn:hover {
+    background-color: #d0e7ff;
+}
+.transparency-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* --- END NEW --- */
+
+/* --- REMOVE/Comment out old Ad Meta Info Styles --- */
+/*
+.ad-meta-info {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed #eee;
+    font-size: 0.85em;
+    color: #777;
+}
+
+.ad-meta-info div {
+     margin-bottom: 2px;
+}
+*/
+/* --- End Removal --- */
+
+/* --- NEW: Ad Details Display Style --- */
+.ad-details-display {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px dashed #cce5ff;
+    background-color: #f8f9fa;
+    font-size: 0.85em;
+}
+.ad-details-display h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1em;
+    color: #333;
+}
+.ad-details-display p {
+    margin: 2px 0;
+    color: #555;
+}
+.ad-details-display.error {
+    border-color: #f5c6cb;
+    background-color: #f8d7da;
+    color: #721c24;
+    font-weight: bold;
+}
+/* --- END NEW --- */
+
+/* --- Platform Icon Styles (mostly unchanged, check vertical alignment) --- */
+.platform-icon {
+    display: inline-block;
+    width: 12px; /* Default width from examples */
+    height: 12px; /* Default height from examples */
+    background-color: #8a8d91; /* Default Ad Library icon color */
+    vertical-align: middle; /* Align icons with text */
+    margin-right: 4px; /* Space between icons */
+}
+
+/* Style for fallback text if icon not found */
+.platform-fallback {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 3px;
+    border: 1px solid #ccc;
+    background-color: #eee;
+    color: #555;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 4px;
 } 

@@ -11,10 +11,6 @@ class Creative {
         this.image_url = image_url; // Could be image or video thumbnail
         this.video_url = video_url; // If available
     }
-
-    get is_video() {
-        return this.video_url !== null;
-    }
 }
 
 class FacebookPage {
@@ -546,12 +542,12 @@ class FacebookScraper {
                                 // Use card-specific elements
                                 headline: card.title,
                                 body: getBodyText(card.body),
-                                caption: card.caption,
+                                caption: card.caption || card.link_description,
                                 cta_text: card.cta_text,
                                 cta_type: card.cta_type,
                                 link_url: card.link_url,
-                                image_url: card.resized_image_url || card.original_image_url || null,
-                                video_url: card.video_sd_url || card.video_hd_url || null
+                                image_url: card.original_image_url || card.resized_image_url  || card.video_preview_image_url || null,
+                                video_url: card.video_hd_url || card.video_sd_url  || null
                             }));
                         }
                     } else {
@@ -729,7 +725,7 @@ class FacebookScraper {
                     display_format: display_format,
                     creatives: creatives,
                     is_aaa_eligible: result?.is_aaa_eligible,
-                    platforms: snapshot?.publisher_platform,
+                    platforms: result?.publisher_platform,
                     start_date: result?.start_date,
                     end_date: result?.end_date,
                 }));
@@ -744,125 +740,27 @@ class FacebookScraper {
     }
 
     async getAdDetails(adArchiveId, pageId) {
-        const url = "https://www.facebook.com/api/graphql/";
-        const friendlyName = 'AdLibraryAdDetailsV2Query';
+        console.log(`Placeholder: Fetching EU Transparency details for Ad ID: ${adArchiveId}, Page ID: ${pageId}`);
+        // TODO: Implement the actual scraping logic to fetch data from
+        // the AAA endpoint (likely involves navigating or making specific API calls)
+        // For now, return null or a dummy TargetingInfo object
+        // Example dummy object:
+        /*
+        return new TargetingInfo({
+             locations: ["Example Country"],
+             excluded_locations: [],
+             gender: "ALL",
+             age_range: { min: 18, max: 65 },
+             eu_total_reach: 100000,
+             demographic_breakdown: []
+        });
+        */
+        return null;
+    }
 
-        const variables = {
-            adArchiveID: adArchiveId,
-            pageID: pageId,
-            country: "ALL", // Or a specific country if needed
-            sessionID: crypto.randomUUID(),
-            source: null, // Or specific source
-            isAdNonPolitical: true, // Based on Python code defaults
-            isAdNotAAAEligible: false, // Based on Python code defaults
-            // "__relay_internal__pv__AdLibraryFinservGraphQLGKrelayprovider": true // Check if this Relay provider key is necessary/valid
-        };
-
-        const baseParams = this._getRequestParams();
-        baseParams.set('fb_api_caller_class', 'RelayModern');
-        baseParams.set('fb_api_req_friendly_name', friendlyName);
-        baseParams.set('variables', JSON.stringify(variables));
-        baseParams.set('server_timestamps', 'true');
-        baseParams.set('doc_id', this.doc_ids.ad_details);
-
-
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                 ...this.headers,
-                'x-fb-friendly-name': friendlyName,
-                'x-fb-lsd': this.lsd || ''
-            },
-            body: baseParams,
-             credentials: 'omit' // Explicitly omit cookies
-        };
-
-        try {
-            console.info(`Fetching details for Ad ID: ${adArchiveId}, Page ID: ${pageId}`);
-            const response = await fetch(url, requestOptions);
-
-            if (!response.ok) {
-                console.error(`Get ad details failed: ${response.status} ${response.statusText}`);
-                console.error("Response Body:", await response.text());
-                return null;
-            }
-
-            const responseText = await response.text();
-            const data = this._parseResponse(responseText);
-
-
-             if (!data || !data.data) {
-                 console.error("Failed to parse ad details response or data is missing.");
-                 // console.log("Raw response text for debugging:", responseText);
-                 return null;
-             }
-
-            // Log raw data
-            console.log("Raw ad details data:", JSON.stringify(data, null, 2));
-
-            const main_data = data?.data?.ad_library_main;
-            const ad_details = main_data?.ad_details;
-            // const advertiser = ad_details?.advertiser; // Not used in Python for final structure
-            // const page_spend_info = advertiser?.ad_library_page_info?.page_spend || {}; // Renamed for clarity
-             const page_info_data = ad_details?.advertiser?.ad_library_page_info || {}; // For PageInfo
-            const aaa_info = ad_details?.aaa_info || {};
-
-
-            // Create TargetingInfo
-             const location_audience = aaa_info?.location_audience || [];
-            const targetingInfo = new TargetingInfo({
-                 locations: location_audience.filter(loc => loc && !loc.excluded).map(loc => loc.name || ''),
-                 excluded_locations: location_audience.filter(loc => loc && loc.excluded).map(loc => loc.name || ''),
-                 gender: aaa_info?.gender_audience || 'Unknown',
-                 age_range: {
-                     min: aaa_info?.age_audience?.min || null,
-                     max: aaa_info?.age_audience?.max || null
-                 },
-                 eu_total_reach: aaa_info?.eu_total_reach,
-                 demographic_breakdown: aaa_info?.age_country_gender_reach_breakdown || []
-             });
-
-            // Create AdInfo
-            let spend = null;
-            const lifetime_disclaimers = page_info_data?.page_spend?.lifetime_by_disclaimer || [];
-            if (Array.isArray(lifetime_disclaimers) && lifetime_disclaimers.length > 0) {
-                spend = lifetime_disclaimers[0]?.spend; // Assuming first disclaimer is relevant
-            }
-
-             const adInfo = new AdInfo({
-                 archive_id: adArchiveId,
-                 page_id: pageId,
-                 spend: spend, // Updated spend
-                 is_political: page_info_data?.page_spend?.is_political_page || false,
-                 targeting: targetingInfo,
-                 payer_beneficiary: aaa_info?.payer_beneficiary_data || [],
-                 is_taken_down: aaa_info?.is_ad_taken_down || false,
-                 has_violations: aaa_info?.has_violating_payer_beneficiary || false
-             });
-
-            // Create PageInfo (Populating based on available data)
-             const pageInfo = new PageInfo({
-                name: page_info_data?.page_name, // Assuming field name
-                category: page_info_data?.page_category, // Assuming field name
-                about: page_info_data?.about, // Assuming field name
-                verification: page_info_data?.page_verification_status, // Assuming field name
-                profile_url: page_info_data?.page_profile_uri, // Assuming field name
-                likes: page_info_data?.page_like_count, // Assuming field name
-             });
-
-             // Create final AdDetails object
-            const adDetailsResult = new AdDetails({
-                ad: adInfo,
-                page: pageInfo // Include the populated PageInfo
-            });
-
-            console.info(`Successfully fetched details for Ad ID: ${adArchiveId}`);
-            return adDetailsResult;
-
-
-        } catch (error) {
-            console.error(`Error getting ad details: ${error}`);
-            return null;
+    async close() {
+        if (this.browser) {
+            // ... existing code ...
         }
     }
 }
