@@ -69,8 +69,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       (async () => { // Use an async IIFE to handle async logic
           try {
-              const currentScraper = await getScraperInstance();
-              const details = await currentScraper.getAdDetails(adId, pageId);
+              const scraper = await getScraperInstance();
+              const details = await scraper.getAdDetails(adId, pageId);
               if (details) {
                   sendResponse({ details: details });
               } else {

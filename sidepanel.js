@@ -17,6 +17,12 @@ const videoModal = document.getElementById("videoModal");
 const modalVideo = document.getElementById("modalVideo");
 const closeVideoModal = document.querySelector(".modal-close-video");
 
+// --- NEW: EU Modal elements ---
+const euModal = document.getElementById("euModal");
+const euModalContent = document.getElementById("euModalContent");
+const closeEuModal = document.querySelector(".modal-close-eu");
+// --- END NEW ---
+
 // Platform Icon Styles Mapping
 const platformStyles = {
     FACEBOOK: 'mask-image: url(&quot;icons/fb_sprite.png&quot;); mask-size: 21px 515px; mask-position: 0px -424px;',
@@ -36,6 +42,10 @@ window.addEventListener('keydown', (event) => {
             videoModal.style.display = 'none';
             modalVideo.pause();
             modalVideo.src = ''; // Stop loading
+        }
+        // Close EU Modal on Escape
+        if (euModal && euModal.style.display === 'flex') {
+            closeEuModalFunction();
         }
     }
 });
@@ -158,8 +168,8 @@ function displayResults(results) {
                             <div><strong>Duration:</strong> ${ad.start_date ? new Date(ad.start_date * 1000).toLocaleDateString() : 'N/A'} - ${ad.end_date ? new Date(ad.end_date * 1000).toLocaleDateString() : 'N/A'}</div>
                         </div>
                         <div class="ad-header-right">
-                            ${platformIconsHTML || 'N/A'}
-                            ${ad.is_aaa_eligible ? `<button class="transparency-btn" data-ad-id="${ad.id}">EU 🇪🇺 transparency</button>` : ''}
+                             ${platformIconsHTML || 'N/A'}
+                            ${ad.is_aaa_eligible ? `<button class="transparency-btn" data-ad-id="${ad.id}">EU Transparency</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -289,32 +299,8 @@ function displayResults(results) {
                     transparencyBtn.addEventListener('click', () => {
                         const adId = transparencyBtn.getAttribute('data-ad-id');
                         if (adId && currentPageId) {
-                            // Optionally show a loading state on the button or near it
-                            transparencyBtn.textContent = 'Loading...';
-                            transparencyBtn.disabled = true;
-                            console.log(`Requesting details for Ad ID: ${adId}, Page ID: ${currentPageId}`);
-                            chrome.runtime.sendMessage(
-                                { action: "getAdDetails", data: { adId: adId, pageId: currentPageId } },
-                                (response) => {
-                                    // Reset button state
-                                    transparencyBtn.textContent = 'EU 🇪🇺 transparency';
-                                    transparencyBtn.disabled = false;
-                                    if (chrome.runtime.lastError) {
-                                        console.error('Error fetching ad details:', chrome.runtime.lastError.message);
-                                        // Display error message near the button or in a status area
-                                        displayAdDetailsError(li, `Error: ${chrome.runtime.lastError.message}`);
-                                    } else if (response.error) {
-                                        console.error('Error from background fetching details:', response.error);
-                                        displayAdDetailsError(li, `Error: ${response.error}`);
-                                    } else if (response.details) {
-                                        console.log('Received ad details:', response.details);
-                                        displayAdDetails(li, response.details);
-                                    } else {
-                                        console.warn('Unexpected response for ad details:', response);
-                                        displayAdDetailsError(li, 'Unexpected response from server.');
-                                    }
-                                }
-                            );
+                            // Open the modal and trigger the request
+                            openEuModal(adId, currentPageId);
                         } else {
                             console.error('Missing adId or currentPageId for transparency button click.');
                         }
@@ -387,54 +373,133 @@ function setupCarousel(carouselElement) {
     showSlide(0);
 }
 
-// --- NEW: Functions to Display Ad Details / Errors ---
-function displayAdDetails(listItemElement, details) {
-    // Clear previous details/errors first
-    let detailsDiv = listItemElement.querySelector('.ad-details-display');
-    if (detailsDiv) {
-        detailsDiv.remove();
-    }
-
-    detailsDiv = document.createElement('div');
-    detailsDiv.className = 'ad-details-display'; // Add a class for styling
-
-    // Simple display for now, can be enhanced
-    detailsDiv.innerHTML = `
-        <h4>Targeting Info:</h4>
-        <p><strong>Locations:</strong> ${details.locations?.join(', ') || 'N/A'}</p>
-        <p><strong>Excluded Locations:</strong> ${details.excluded_locations?.join(', ') || 'N/A'}</p>
-        <p><strong>Gender:</strong> ${details.gender || 'N/A'}</p>
-        <p><strong>Age Range:</strong> ${details.age_range?.min ?? 'N/A'} - ${details.age_range?.max ?? 'N/A'}</p>
-        <p><strong>EU Reach:</strong> ${details.eu_total_reach?.toLocaleString() || 'N/A'}</p>
-        <!-- Add more details as needed -->
-    `;
-
-    // Insert the details section after the main ad content (e.g., after media/CTA)
-    const ctaArea = listItemElement.querySelector('.ad-cta-area');
-    if (ctaArea) {
-        listItemElement.insertBefore(detailsDiv, ctaArea.nextSibling);
-    } else {
-        listItemElement.appendChild(detailsDiv); // Fallback append
+// --- NEW: EU Modal close listeners/functions ---
+function closeEuModalFunction() {
+    if (euModal) {
+        euModal.style.display = "none";
+        euModalContent.innerHTML = '<p>Loading EU Transparency details...</p>'; // Reset content
     }
 }
 
-function displayAdDetailsError(listItemElement, errorMessage) {
-    // Clear previous details/errors first
-    let errorDiv = listItemElement.querySelector('.ad-details-display.error');
-    if (errorDiv) {
-        errorDiv.remove();
+if(closeEuModal) {
+    closeEuModal.onclick = closeEuModalFunction;
+}
+
+if(euModal) {
+    euModal.onclick = function(event) {
+        // Close if clicked outside the modal content area
+        if (event.target == euModal) {
+            closeEuModalFunction();
+        }
+    }
+}
+// --- END NEW ---
+
+// --- NEW: EU Modal Functions ---
+function openEuModal(adId, pageId) {
+    if (!euModal || !euModalContent) {
+        console.error("EU Modal elements (#euModal or #euModalContent) not found in the HTML!");
+        return;
     }
 
-    errorDiv = document.createElement('div');
-    errorDiv.className = 'ad-details-display error'; // Add error class
-    errorDiv.textContent = errorMessage;
+    // Show modal with loading state
+    euModalContent.innerHTML = '<p>Loading EU Transparency details...</p>';
+    euModal.style.display = "flex"; // Use flex to enable centering
 
-     // Insert the error section similarly to the details section
-    const ctaArea = listItemElement.querySelector('.ad-cta-area');
-    if (ctaArea) {
-        listItemElement.insertBefore(errorDiv, ctaArea.nextSibling);
+    // Send request to background
+    console.log(`Requesting EU details for Ad ID: ${adId}, Page ID: ${pageId}`);
+    chrome.runtime.sendMessage(
+        { action: "getAdDetails", data: { adId: adId, pageId: pageId } },
+        (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error fetching EU details:', chrome.runtime.lastError.message);
+                populateEuModalError(`Error: ${chrome.runtime.lastError.message}`);
+            } else if (response.error) {
+                console.error('Error from background fetching EU details:', response.error);
+                populateEuModalError(`Error: ${response.error}`);
+            } else if (response.details) {
+                console.log('Received EU details:', response.details);
+                populateEuModal(response.details);
+            } else {
+                console.warn('Unexpected response for EU details:', response);
+                populateEuModalError('Unexpected response from server.');
+            }
+        }
+    );
+}
+
+function populateEuModal(details) {
+    if (!euModalContent) return;
+
+    let contentHTML = `<h3>EU Transparency Details</h3>`;
+
+    // --- General Details (Strong on Value) ---
+    contentHTML += `
+        <p>Locations: <strong>${details.locations?.join(', ') || 'N/A'}</strong></p>
+        ${(details.excluded_locations && details.excluded_locations.length > 0) ? `<p>Excluded Locations: <strong>${details.excluded_locations.join(', ')}</strong></p>` : ''}
+        <p>Gender: <strong>${details.gender || 'N/A'}</strong></p>
+        <p>Age Range: <strong>${details.age_range?.min ?? 'N/A'} - ${details.age_range?.max ?? 'N/A'}</strong></p>
+        <p>Estimated EU Reach: <strong>${details.eu_total_reach?.toLocaleString() || 'N/A'}</strong></p>
+    `;
+
+    // Demographics Table
+    if (details.demographic_breakdown && details.demographic_breakdown.length > 0) {
+        // Assuming we only display the first country's breakdown if multiple exist
+        const firstCountryBreakdown = details.demographic_breakdown[0];
+        const ageGenderBreakdowns = firstCountryBreakdown?.age_gender_breakdowns;
+
+        if (ageGenderBreakdowns && ageGenderBreakdowns.length > 0) {
+            contentHTML += `<h4>Demographic Breakdown (Reach - ${firstCountryBreakdown.country || 'Unknown Country'})</h4>`;
+            contentHTML += `<table class="demographics-table">`;
+            contentHTML += `<thead><tr><th>Age Range</th><th>Male</th><th>Female</th></tr></thead>`;
+            contentHTML += `<tbody>`;
+
+            let totalMale = 0;
+            let totalFemale = 0;
+
+            ageGenderBreakdowns.forEach(row => {
+                 // Format numbers with commas, handle nulls
+                 const formatNumber = (num) => num != null ? num.toLocaleString() : '-';
+
+                 // Accumulate totals (treat null as 0 for sum)
+                 totalMale += row.male || 0;
+                 totalFemale += row.female || 0;
+
+                 contentHTML += `
+                    <tr>
+                        <td>${row.age_range || 'N/A'}</td>
+                        <td>${formatNumber(row.male)}</td>
+                        <td>${formatNumber(row.female)}</td>
+                    </tr>
+                `;
+            });
+            contentHTML += `</tbody>`;
+            // --- Add Total Row --- 
+            contentHTML += `<tfoot>`;
+            contentHTML += `
+                 <tr>
+                      <td><strong>Total</strong></td>
+                      <td><strong>${totalMale.toLocaleString()}</strong></td>
+                      <td><strong>${totalFemale.toLocaleString()}</strong></td>
+                 </tr>
+            `;
+            contentHTML += `</tfoot>`;
+            contentHTML += `</table>`;
+        } else {
+             contentHTML += `<p>No age/gender breakdown data available for the primary country.</p>`;
+        }
     } else {
-        listItemElement.appendChild(errorDiv); // Fallback append
+        contentHTML += `<p>No demographic breakdown data available.</p>`;
     }
+
+    euModalContent.innerHTML = contentHTML;
+}
+
+function populateEuModalError(errorMessage) {
+    if (!euModalContent) return;
+    euModalContent.innerHTML = `
+        <h3>Error Fetching EU Details</h3>
+        <p class="error">${errorMessage}</p>
+    `;
 }
 // --- END NEW ---

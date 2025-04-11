@@ -391,22 +391,6 @@ a:hover {
 }
 /* --- END NEW --- */
 
-/* --- REMOVE/Comment out old Ad Meta Info Styles --- */
-/*
-.ad-meta-info {
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px dashed #eee;
-    font-size: 0.85em;
-    color: #777;
-}
-
-.ad-meta-info div {
-     margin-bottom: 2px;
-}
-*/
-/* --- End Removal --- */
-
 /* --- NEW: Ad Details Display Style --- */
 .ad-details-display {
     margin-top: 15px;
@@ -454,4 +438,107 @@ a:hover {
     border-radius: 2px;
     vertical-align: middle;
     margin-right: 4px;
-} 
+}
+
+/* --- NEW: EU Modal Styles --- */
+#euModal {
+    /* Inherits .modal styles (display:none, position:fixed, z-index, etc.) */
+    /* Add flex centering */
+    /* --- Default State: Hidden --- */
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.8);
+    /* --- Centering (will apply when display is set to flex) --- */
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content-eu {
+    background-color: #fefefe;
+    margin: 20px; /* Add some margin back for spacing */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Adjust as needed */
+    max-width: 600px; /* Limit max width */
+    border-radius: 5px;
+    position: relative; /* Needed for absolute close button */
+    font-size: 0.95em;
+    max-height: 80vh; /* Limit height and enable scrolling */
+    overflow-y: auto;
+}
+
+.modal-close-eu {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+    z-index: 101; /* Ensure above modal content */
+}
+
+.modal-close-eu:hover,
+.modal-close-eu:focus {
+    color: black;
+    text-decoration: none;
+}
+
+/* EU Modal Content Specific Styles */
+#euModalContent h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+#euModalContent p {
+    margin: 5px 0;
+}
+#euModalContent strong {
+    color: #333;
+}
+
+/* EU Modal Demographics Table */
+.demographics-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.demographics-table th,
+.demographics-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: right;
+}
+
+.demographics-table th {
+    background-color: #f2f2f2;
+    text-align: center;
+    font-weight: bold;
+}
+
+.demographics-table td:first-child {
+    text-align: left; /* Align age range left */
+    font-weight: bold;
+}
+
+/* --- NEW: Style for table footer --- */
+.demographics-table tfoot tr {
+    background-color: #e9ecef; /* Slightly different background */
+    border-top: 2px solid #ccc; /* Stronger separator */
+}
+
+.demographics-table tfoot td {
+    font-weight: bold; /* Make all footer cells bold */
+}
+/* --- END NEW --- */
+
+/* --- END EU Modal Styles --- */ 
