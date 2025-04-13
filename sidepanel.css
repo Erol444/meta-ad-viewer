@@ -216,8 +216,8 @@ a:hover {
 /* .video-wrapper::after ... */
 /* .video-wrapper.playing::after ... */
 
-/* --- Image Modal Styles --- */
-.modal {
+/* --- Combined Media Modal Styles --- */
+#mediaModal { /* Updated selector */
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
     z-index: 100; /* Sit on top */
@@ -225,23 +225,36 @@ a:hover {
     top: 0;
     width: 100%; /* Full width */
     height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.8); /* Black w/ opacity */
+    overflow: hidden; /* Hide overflow, content should fit */
+    background-color: rgba(0,0,0,0.9); /* Slightly darker background */
 }
 
-.modal-content {
+/* Container for the actual image or video */
+.modal-content-media { /* Updated selector */
     margin: auto;
-    display: block;
+    display: flex; /* Use flex to center content */
+    justify-content: center;
+    align-items: center;
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-width: 90%;
-    max-height: 90%;
-    object-fit: contain;
+    top: 5%;  /* Add some padding from top/bottom */
+    bottom: 5%;
+    left: 5%; /* Add some padding from left/right */
+    right: 5%;
+    /* Max width/height handled by content inside */
 }
 
-.modal-close {
+/* Styling for the image/video inside the modal */
+.modal-content-media img,
+.modal-content-media video {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Optional shadow */
+}
+
+/* Updated close button selector */
+.modal-close { 
     position: absolute;
     top: 15px;
     right: 35px;
@@ -250,6 +263,7 @@ a:hover {
     font-weight: bold;
     transition: 0.3s;
     cursor: pointer;
+    z-index: 110; /* Ensure above nav buttons */
 }
 
 .modal-close:hover,
@@ -258,23 +272,46 @@ a:hover {
     text-decoration: none;
 }
 
-/* Style for video modal close button (can be same as image close) */
-.modal-close-video {
+/* --- NEW: Modal Navigation Buttons --- */
+.modal-nav-btn {
     position: absolute;
-    top: 15px;
-    right: 35px;
-    color: #f1f1f1;
-    font-size: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.3); /* Darker background */
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle white border */
+    padding: 10px 15px;
+    font-size: 24px;
     font-weight: bold;
-    transition: 0.3s;
     cursor: pointer;
+    z-index: 105; /* Below close, above content */
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
 }
 
-.modal-close-video:hover,
-.modal-close-video:focus {
-    color: #bbb;
-    text-decoration: none;
+.modal-nav-btn.prev {
+    left: 15px;
 }
+
+.modal-nav-btn.next {
+    right: 15px;
+}
+
+.modal-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.5); /* Darker on hover */
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.modal-nav-btn:disabled {
+    opacity: 0.3; /* Increase opacity slightly for visibility */
+    cursor: default;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+/* --- END NEW --- */
+
+/* --- REMOVED old video-specific modal styles --- */
+/* .modal-close-video ... */
 
 /* --- Ad Content Styling --- */
 .ad-headline {
@@ -567,5 +604,34 @@ a:hover {
 .page-link-row .platform-fallback {
     margin-right: 6px; /* Space between icon and link */
     flex-shrink: 0; /* Prevent icon from shrinking */
+}
+/* --- END NEW --- */
+
+/* --- NEW: Loading Indicator Styles --- */
+.loading-indicator {
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    margin-top: 10px; /* Space above */
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border-left-color: #007bff; /* Spinner color */
+
+    animation: spin 1s ease infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 /* --- END NEW --- */ 

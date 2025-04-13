@@ -432,27 +432,27 @@ class FacebookScraper {
         }
     }
 
-    async getPageAds(pageId) {
+    async getPageAds(pageId, cursor = null) {
         const url = "https://www.facebook.com/api/graphql/";
         const friendlyName = 'AdLibrarySearchPaginationQuery';
 
         const variables = {
-            activeStatus: "active",
-            adType: "ALL",
+            activeStatus: "ACTIVE", // or INACTIVE or ALL
+            adType: "ALL", // 
             bylines: [],
             collationToken: crypto.randomUUID(), // Use browser's crypto API
             contentLanguages: [],
             countries: ["ALL"],
-            cursor: null,
+            cursor: cursor, // Use the provided cursor
             excludedIDs: [],
-            first: 30,
+            first: 30, // Keep fetching 30 at a time
             isTargetedCountry: false,
             location: null,
-            mediaType: "all",
+            mediaType: "all", // or IMAGE, MEME (img with text), VIDEO
             multiCountryFilterMode: null,
             pageIDs: [],
             potentialReachInput: null,
-            publisherPlatforms: [],
+            publisherPlatforms: [], // multiselect: FACEBOOK, INSTAGRAM,AUDIENCE_NETWORK,MESSENGER,THREADS
             queryString: "",
             regions: null,
             searchType: "page",
@@ -503,6 +503,7 @@ class FacebookScraper {
                  return [];
              }
 
+            const page_info = data?.data?.ad_library_main?.search_results_connection?.page_info || { end_cursor: null, has_next_page: false };
             const ads = [];
             const edges = data?.data?.ad_library_main?.search_results_connection?.edges || [];
 
@@ -730,12 +731,20 @@ class FacebookScraper {
                     end_date: result?.end_date,
                 }));
             }
-            console.info(`Found ${ads.length} ad snapshots for page ID: ${pageId}`);
-            return ads;
+            console.info(`Found ${ads.length} ad snapshots for page ID: ${pageId}` + (cursor ? ` (Cursor: ${cursor})` : '(Initial fetch)') + `. Has next page: ${page_info.has_next_page}`);
+            // Return ads and pagination info
+            return {
+                ads: ads,
+                page_info: {
+                    end_cursor: page_info.end_cursor,
+                    has_next_page: page_info.has_next_page
+                }
+            };
 
         } catch (error) {
             console.error(`Error getting page ads: ${error}`);
-            return [];
+            // Return structure indicating error or empty state
+            return { ads: [], page_info: { end_cursor: null, has_next_page: false } };
         }
     }
 

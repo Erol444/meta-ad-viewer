@@ -153,6 +153,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
   }
 
+  // --- NEW: Handle Request for More Ads (Pagination) ---
+  else if (message.action === "getMoreAds") {
+     const { pageId, cursor } = message.data;
+     if (!pageId || !cursor) {
+         sendResponse({ error: "Missing pageId or cursor for pagination" });
+         return false;
+     }
+     (async () => {
+         try {
+             const scraper = await getScraperInstance();
+             const results = await scraper.getPageAds(pageId, cursor); // Fetch next page
+             sendResponse({ results: results }); // Send back { ads: [...], page_info: {...} }
+         } catch (error) {
+             console.error(`Error fetching more ads (page ${pageId}, cursor ${cursor}):`, error);
+             sendResponse({ error: `Failed to fetch more ads: ${error.message}` });
+         }
+     })();
+     return true; // Async response
+  }
+
   // No need to listen for "reportUiState" anymore, handled in requestAndUpdateState
 
 });
@@ -167,19 +187,21 @@ async function scrapeAndSendData(pageData) {
             : (pageData.instagramLink ? (pageData.instagramLink.match(/instagram\.com\/([\w.]+)/)?.[1] || pageData.instagramLink) : 'current page');
 
         if (targetPage) {
-            const ads = await findFacebookAds(currentScraper, targetPage.id);
-            console.log(`Found ${ads.length} ads for page ${targetPage.name}.`);
+            const adsResult = await findFacebookAds(currentScraper, targetPage.id);
+            console.log(`Found ${adsResult.ads.length} ads for page ${targetPage.name}.`);
             return {
                 searchedTerm: targetPage.name || searchTerm,
                 foundPage: targetPage,
-                ads: ads
+                ads: adsResult.ads,
+                page_info: adsResult.page_info
             };
         } else {
             console.log(`No Facebook page found for term: ${searchTerm}`);
             return {
                 searchedTerm: searchTerm,
                 foundPage: null,
-                ads: []
+                ads: [],
+                page_info: { end_cursor: null, has_next_page: false }
             };
         }
     } catch (error) {
@@ -229,9 +251,9 @@ async function findFacebookAds(scraperInstance, pageIdToSearch) {
     if (!pageIdToSearch) return [];
     console.log(`Fetching ads for Page ID: ${pageIdToSearch}`);
     try {
-        const ads = await scraperInstance.getPageAds(pageIdToSearch);
-        console.log(`Found ${ads.length} ads for page ID ${pageIdToSearch}.`);
-        return ads;
+        const adsResult = await scraperInstance.getPageAds(pageIdToSearch);
+        console.log(`Found ${adsResult.ads.length} ads for page ID ${pageIdToSearch}. Has next: ${adsResult.page_info.has_next_page}`);
+        return adsResult;
     } catch (error) {
         console.error(`Error fetching ads for page ID ${pageIdToSearch}:`, error);
         throw error;
