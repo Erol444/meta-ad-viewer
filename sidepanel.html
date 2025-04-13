@@ -5,9 +5,9 @@
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-    <button id="customCloseBtn" class="close-button" title="Close Panel (Visual Only)">&times;</button>
-    <h1>Competition Spy</h1>
-    <button id="analyzeBtn">Analyze Current Page</button>
+    <button id="customCloseBtn" class="close-button" title="Close Panel">&times;</button>
+    <h1>Meta Ad Library (by <a href="https://spydelta.com" target="_blank">SpyDelta</a>)</h1>
+
     <div id="status"></div>
     <div id="results">
         <h2>Results</h2>
@@ -16,24 +16,20 @@
         <ul id="adsList"></ul>
     </div>
 
-    <!-- Image Modal Structure -->
-    <div id="imageModal" class="modal">
-        <span class="modal-close" title="Close">&times;</span>
-        <img class="modal-content" id="modalImage">
+    <!-- Combined Media Modal Structure -->
+    <div id="mediaModal" class="modal">
+        <span class="modal-close" title="Close (Esc)">&times;</span>
+        <div id="modalMediaContent" class="modal-content-media"></div>
+        <button id="modalPrevBtn" class="modal-nav-btn prev" title="Previous">&lt;</button>
+        <button id="modalNextBtn" class="modal-nav-btn next" title="Next">></button>
     </div>
 
     <div id="euModal" class="modal">
-        <span class="modal-close-eu">&times;</span>
+        <span class="modal-close-eu" title="Close (Esc)">&times;</span>
         <div class="modal-content-eu" id="euModalContent">
           <!-- Details will be loaded here -->
           <p>Loading EU Transparency details...</p>
         </div>
-    </div>
-
-    <!-- Video Modal Structure -->
-    <div id="videoModal" class="modal">
-        <span class="modal-close-video" title="Close">&times;</span>
-        <video class="modal-content" id="modalVideo" controls controlsList="nodownload"></video>
     </div>
 
     <script src="sidepanel.js"></script>

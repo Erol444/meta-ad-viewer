@@ -13,185 +13,227 @@ async function getScraperInstance() {
   return scraper;
 }
 
-// --- Side Panel Logic ---
+// --- Action Click Logic: Toggle In-Page UI ---
 chrome.action.onClicked.addListener((tab) => {
-  chrome.sidePanel.open({ windowId: tab.windowId });
+    if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { action: "toggleUiModal" }, (response) => {
+            if (chrome.runtime.lastError) {
+                 console.error(`Could not send toggle message to tab ${tab.id}: ${chrome.runtime.lastError.message}. Maybe script not injected?`);
+                 // Attempt injection if sending fails
+                 chrome.scripting.executeScript({
+                     target: { tabId: tab.id },
+                     files: ['content.js']
+                 }).then(() => {
+                     console.log("Injected content script after initial message failure.");
+                     chrome.tabs.sendMessage(tab.id, { action: "toggleUiModal" }); // Retry
+                 }).catch(err => {
+                     console.error(`Failed to inject content script on tab ${tab.id}: ${err}`);
+                 });
+            }
+        });
+    } else {
+        console.error("Clicked tab has no ID.");
+    }
+});
+
+// --- Function to Update Icon Based on State (Per Tab) ---
+function updateIconForTab(tabId, isActive) {
+    if (!tabId) return;
+    const iconPathBase = isActive ? "assets/icons/favicon-active" : "assets/icons/favicon";
+    const iconPaths = {
+        "16": `${iconPathBase}-16.png`,
+        "32": `${iconPathBase}-32.png`,
+        "48": `${iconPathBase}-48.png`,
+        "128": `${iconPathBase}-128.png`
+    };
+    chrome.action.setIcon({
+        path: iconPaths,
+        tabId: tabId
+    }).catch(error => {
+        // Ignore common errors when tab closes quickly
+        if (!error.message.includes("No tab with id") && !error.message.includes("Cannot access contents of url")) {
+            console.warn(`Error setting icon for tab ${tabId}:`, error.message);
+        }
+    });
+}
+
+// --- Request UI State from Content Script ---
+async function requestAndUpdateState(tabId) {
+    if (!tabId) return;
+    try {
+        console.log(`[background] Requesting UI state from tab ${tabId}`);
+        const response = await chrome.tabs.sendMessage(tabId, { action: "getUiState" });
+        if (response && typeof response.isActive === 'boolean') {
+            console.log(`[background] Received UI state from tab ${tabId}: ${response.isActive}`);
+            updateIconForTab(tabId, response.isActive);
+        } else {
+             console.warn(`[background] Received invalid response for getUiState from tab ${tabId}:`, response);
+             updateIconForTab(tabId, false);
+        }
+    } catch (error) {
+         console.warn(`[background] Failed to send/receive getUiState for tab ${tabId}: ${error.message}. Assuming inactive.`);
+         updateIconForTab(tabId, false);
+    }
+}
+
+// --- Tab Event Listeners ---
+chrome.tabs.onActivated.addListener(activeInfo => {
+    requestAndUpdateState(activeInfo.tabId);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
+        requestAndUpdateState(tabId);
+    }
 });
 
 // --- Content Script Interaction & Scraping Logic ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle Analysis Request (from sidepanel)
   if (message.action === "analyzePage") {
-    // 1. Inject content script into the active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const activeTab = tabs[0];
       if (activeTab && activeTab.id) {
+        // Ensure content script is injected first
         chrome.scripting.executeScript({
           target: { tabId: activeTab.id },
           files: ['content.js']
-        }, (injectionResults) => {
-          if (chrome.runtime.lastError || !injectionResults || injectionResults.length === 0) {
-            console.error('Failed to inject content script:', chrome.runtime.lastError?.message);
-            sendResponse({ error: "Failed to inject content script" });
-            return;
-          }
-          // Content script executed, now send message to it to get data
-          chrome.tabs.sendMessage(activeTab.id, { action: "extractLinks" }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error('Error receiving data from content script:', chrome.runtime.lastError.message);
-              sendResponse({ error: "Failed to get data from page" });
-              return;
-            }
-            if (response && response.data) {
-              console.log('Received data from content script:', response.data);
-              // 2. Use scraper with the extracted data
-              scrapeAndSendData(response.data, sendResponse);
-            } else {
-               sendResponse({ error: "No data received from content script" });
-            }
-          });
+        })
+        .then(() => chrome.tabs.sendMessage(activeTab.id, { action: "extractLinks" }))
+        .then(response => {
+          if (chrome.runtime.lastError) throw new Error(`ExtractLinks Error: ${chrome.runtime.lastError.message}`);
+          if (!response || !response.data) throw new Error("No data received from content script");
+          console.log('Received data from content script:', response.data);
+          return scrapeAndSendData(response.data);
+        })
+        .then(scrapeResults => {
+           sendResponse({ results: scrapeResults });
+        })
+        .catch(error => {
+          console.error('Error during analyzePage flow:', error);
+          sendResponse({ error: error.message || "Analysis failed." });
         });
       } else {
-        console.error('Could not get active tab ID.');
         sendResponse({ error: "Could not get active tab" });
       }
     });
-
-    return true; // Indicates that the response is sent asynchronously
+    return true; // Async response
   }
-  // --- NEW: Handle Get Ad Details Request ---
+
+  // Handle Ad Details Request (from sidepanel)
   else if (message.action === "getAdDetails") {
       const { adId, pageId } = message.data;
       if (!adId || !pageId) {
-          console.error('Missing adId or pageId for getAdDetails');
           sendResponse({ error: "Missing adId or pageId" });
-          return false; // Synchronous response
+          return false;
       }
-
-      (async () => { // Use an async IIFE to handle async logic
+      (async () => {
           try {
               const scraper = await getScraperInstance();
               const details = await scraper.getAdDetails(adId, pageId);
-              if (details) {
-                  sendResponse({ details: details });
-              } else {
-                  // If scraper returns null, it might mean not found or error during scrape
-                  sendResponse({ error: "Could not fetch ad details (may not exist or scraping issue)." });
-              }
+              sendResponse({ details: details || null }); // Send details or null
           } catch (error) {
               console.error("Error fetching ad details in background:", error);
-              sendResponse({ error: `Failed to fetch ad details: ${error.message || error}` });
+              sendResponse({ error: `Failed to fetch ad details: ${error.message}` });
           }
       })();
-
-      return true; // Indicates asynchronous response
+      return true; // Async response
   }
-  // --- END: Handle Get Ad Details Request ---
+
+  // --- ADD BACK: Handle State Report from Content Script ---
+  else if (message.action === "reportUiState") {
+      const tabId = sender.tab?.id;
+      if (tabId && typeof message.isActive === 'boolean') {
+           console.log(`[background] Received reportUiState from tab ${tabId}: ${message.isActive}`); // LOGGING
+           updateIconForTab(tabId, message.isActive);
+      } else {
+          console.warn(`[background] Received invalid reportUiState:`, message, sender); // LOGGING
+      }
+      // No response needed back to content script
+      return false;
+  }
+
+  // No need to listen for "reportUiState" anymore, handled in requestAndUpdateState
+
 });
 
-// --- Combined Scraping Logic ---
-async function scrapeAndSendData(pageData, sendResponse) {
+// --- Combined Scraping Logic (Return results object) ---
+async function scrapeAndSendData(pageData) {
     try {
-        const currentScraper = await getScraperInstance(); // Get or init scraper
-        const targetPage = await findFacebookPage(currentScraper, pageData); // Pass scraper
+        const currentScraper = await getScraperInstance();
+        const targetPage = await findFacebookPage(currentScraper, pageData);
+        const searchTerm = pageData.facebookLink
+            ? (pageData.facebookLink.match(/facebook\.com\/([\w.]+)/)?.[1] || pageData.facebookLink)
+            : (pageData.instagramLink ? (pageData.instagramLink.match(/instagram\.com\/([\w.]+)/)?.[1] || pageData.instagramLink) : 'current page');
 
         if (targetPage) {
-            const ads = await findFacebookAds(currentScraper, targetPage.id); // Pass scraper
+            const ads = await findFacebookAds(currentScraper, targetPage.id);
             console.log(`Found ${ads.length} ads for page ${targetPage.name}.`);
-            sendResponse({
-                results: {
-                    searchedTerm: pageData.facebookLink ? (pageData.facebookLink.match(/facebook\.com\/([\w\.]+)/)?.[1] || pageData.facebookLink) : (pageData.instagramLink.match(/instagram\.com\/([\w\.]+)/)?.[1] || pageData.instagramLink),
-                    foundPage: targetPage,
-                    ads: ads
-                }
-            });
+            return {
+                searchedTerm: targetPage.name || searchTerm,
+                foundPage: targetPage,
+                ads: ads
+            };
         } else {
-            // Determine searched term even if page not found
-            const searchTerm = pageData.facebookLink ? (pageData.facebookLink.match(/facebook\.com\/([\w\.]+)/)?.[1] || pageData.facebookLink) : (pageData.instagramLink.match(/instagram\.com\/([\w\.]+)/)?.[1] || pageData.instagramLink);
-            console.log(`No Facebook page found for term derived from links: ${searchTerm}`);
-            sendResponse({ results: { searchedTerm: searchTerm, foundPage: null, ads: [] } });
+            console.log(`No Facebook page found for term: ${searchTerm}`);
+            return {
+                searchedTerm: searchTerm,
+                foundPage: null,
+                ads: []
+            };
         }
     } catch (error) {
         console.error("Scraping error in scrapeAndSendData:", error);
-        sendResponse({ error: `Scraping failed: ${error.message || error}` }); // Ensure error message is passed
+        throw new Error(`Scraping failed: ${error.message || error}`);
     }
 }
 
-// --- Facebook Scraping Functions ---
+// --- Facebook Scraping Functions (Keep as they were) ---
 async function findFacebookPage(scraperInstance, pageData) {
     console.log("Starting Facebook page finding process with data:", pageData);
     const { facebookLink, instagramLink } = pageData;
-
     let pageNameToSearch = null;
     let searchSource = '';
-
-    // Prioritize Facebook link if available
     if (facebookLink) {
-        console.log(`Attempting to extract Page ID/Name from Facebook URL: ${facebookLink}`);
-        // Basic extraction (needs refinement for different URL formats)
-        const fbMatch = facebookLink.match(/facebook\.com\/([\w\.]+)(?:\/|$)/);
-        if (fbMatch && fbMatch[1]) {
-            pageNameToSearch = fbMatch[1]; // Use the profile name/alias
+        const fbMatch = facebookLink.match(/facebook\.com\/(?:pages\/[^\/]+\/)?([\w\.]+)(?:[/?]|$)/);
+        if (fbMatch && fbMatch[1] && fbMatch[1].toLowerCase() !== 'profile.php') {
+            pageNameToSearch = fbMatch[1];
             searchSource = 'Facebook Link';
-            console.log(`Extracted potential page alias: ${pageNameToSearch}`);
-            // TODO: Consider if we can get the numerical ID more directly?
-        } else {
-            console.warn(`Could not extract page alias from Facebook URL: ${facebookLink}`);
         }
     }
-
-    // Fallback to Instagram link if no Facebook link or if FB alias fails
     if (!pageNameToSearch && instagramLink) {
-        console.log(`Attempting to extract username from Instagram URL: ${instagramLink}`);
-        const igMatch = instagramLink.match(/instagram\.com\/([\w\.]+)(?:\/|$)/);
+        const igMatch = instagramLink.match(/instagram\.com\/([\w\.]+)(?:[/?]|$)/);
         if (igMatch && igMatch[1]) {
-            pageNameToSearch = igMatch[1]; // Use IG username for search
+            pageNameToSearch = igMatch[1];
             searchSource = 'Instagram Link';
-            console.log(`Using Instagram username for search: ${pageNameToSearch}`);
-        }
-         else {
-            console.warn(`Could not extract username from Instagram URL: ${instagramLink}`);
         }
     }
-
-    if (!pageNameToSearch) {
-        console.error("Could not determine a page name/ID to search from the provided links.");
-        return null;
-    }
-
+    if (!pageNameToSearch) return null;
     console.log(`Searching Facebook Pages for: ${pageNameToSearch} (Source: ${searchSource})`);
-    const pages = await scraperInstance.searchPages(pageNameToSearch);
-
-    if (!pages || pages.length === 0) {
-        console.log(`No Facebook pages found matching '${pageNameToSearch}'.`);
-        return null;
+    try {
+        const pages = await scraperInstance.searchPages(pageNameToSearch);
+        if (!pages || pages.length === 0) return null;
+        let targetPage = null;
+        if (searchSource === 'Facebook Link') targetPage = pages.find(p => p.page_alias === pageNameToSearch);
+        if (!targetPage && searchSource === 'Instagram Link') targetPage = pages.find(p => p.ig_username === pageNameToSearch);
+        if (!targetPage && pages.length > 0) targetPage = pages[0]; // Fallback
+        console.log(`Selected page: ${targetPage?.name}`);
+        return targetPage;
+    } catch (error) {
+        console.error(`Error during page search for '${pageNameToSearch}':`, error);
+        throw error;
     }
-
-    // Find correct page based on page_alias
-    const targetPage = pages.find(page => page.page_alias === pageNameToSearch) || pages.find(page => page.ig_username === pageNameToSearch);
-
-    if (!targetPage) {
-      console.error("Failed to find a valid page from search results.");
-      return null;
-    }
-
-    // Strategy: Pick the most likely page. Often the first result is good,
-    // but might need refinement (e.g., check for verification, follower count match?)
-    console.log(`Found the match: ${targetPage.name} (ID: ${targetPage.id}, Likes: ${targetPage.likes})`);
-    return targetPage
 }
 
 async function findFacebookAds(scraperInstance, pageIdToSearch) {
-    if (!pageIdToSearch) {
-        console.error("No Page ID provided to findFacebookAds.");
-        return []; // Return empty array if no ID
-    }
+    if (!pageIdToSearch) return [];
     console.log(`Fetching ads for Page ID: ${pageIdToSearch}`);
-    const ads = await scraperInstance.getPageAds(pageIdToSearch);
-
-    console.log(`Found ${ads.length} ads for page ID ${pageIdToSearch}.`);
-
-    // Removed logic dependent on variables from findFacebookPage scope
-    // Removed fetching details for first ad for simplicity now
-
-    return ads; // Return only the ads array
+    try {
+        const ads = await scraperInstance.getPageAds(pageIdToSearch);
+        console.log(`Found ${ads.length} ads for page ID ${pageIdToSearch}.`);
+        return ads;
+    } catch (error) {
+        console.error(`Error fetching ads for page ID ${pageIdToSearch}:`, error);
+        throw error;
+    }
 }

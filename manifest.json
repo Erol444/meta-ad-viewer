@@ -5,8 +5,7 @@
   "description": "Analyze the current page to find Facebook/Instagram links and check for Meta ads.",
   "permissions": [
     "activeTab",
-    "scripting",
-    "sidePanel"
+    "scripting"
   ],
   "host_permissions": [
     "*://*.facebook.com/*"
@@ -16,17 +15,33 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Analyze Page Ads"
+    "default_title": "Analyze Page Ads",
+    "default_icon": {
+      "16": "assets/favicon.png",
+      "32": "assets/favicon.png",
+      "48": "assets/favicon.png",
+      "128": "assets/favicon.png"
+    }
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": [
-        "icons/fb_sprite.png",
-        "icons/fb_sprite_others.png",
-        "icons/sprite-network.png"
+        "assets/fb_sprite.png",
+        "assets/fb_sprite_others.png",
+        "assets/sprite-network.png",
+        "sidepanel.html",
+        "sidepanel.css",
+        "sidepanel.js"
       ],
       "matches": ["<all_urls>"]
     }

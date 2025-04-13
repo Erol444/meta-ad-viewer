@@ -1,4 +1,3 @@
-const analyzeBtn = document.getElementById('analyzeBtn');
 const statusDiv = document.getElementById('status');
 const resultsDiv = document.getElementById('results');
 const pageInfoDiv = document.getElementById('pageInfo');
@@ -23,14 +22,58 @@ const euModalContent = document.getElementById("euModalContent");
 const closeEuModal = document.querySelector(".modal-close-eu");
 // --- END NEW ---
 
+// --- NEW: Reference to the custom close button ---
+const customCloseBtn = document.getElementById('customCloseBtn');
+// --- END NEW ---
+
 // Platform Icon Styles Mapping
 const platformStyles = {
-    FACEBOOK: 'mask-image: url(&quot;icons/fb_sprite.png&quot;); mask-size: 21px 515px; mask-position: 0px -424px;',
-    INSTAGRAM: 'mask-image: url(&quot;icons/fb_sprite.png&quot;); mask-size: 21px 515px; mask-position: 0px -437px;',
-    AUDIENCE_NETWORK: 'mask-image: url(&quot;icons/sprite-network.png&quot;); mask-size: 81px 236px; mask-position: -68px -189px;',
-    MESSENGER: 'mask-image: url(&quot;icons/fb_sprite_others.png&quot;); mask-size: 441px 673px; mask-position: -355px -524px;'
-    // Add other platforms here if needed
+    FACEBOOK: 'mask-image: url(&quot;assets/fb_sprite.png&quot;); mask-size: 21px 515px; mask-position: 0px -424px;',
+    INSTAGRAM: 'mask-image: url(&quot;assets/fb_sprite.png&quot;); mask-size: 21px 515px; mask-position: 0px -437px;',
+    AUDIENCE_NETWORK: 'mask-image: url(&quot;assets/sprite-network.png&quot;); mask-size: 81px 236px; mask-position: -68px -189px;',
+    MESSENGER: 'mask-image: url(&quot;assets/fb_sprite_others.png&quot;); mask-size: 441px 673px; mask-position: -355px -524px;'
 };
+
+// --- Helper to create platform icon span ---
+function createPlatformIcon(platform) {
+     const style = platformStyles[platform];
+     const fallback = platform.substring(0, 2);
+     const size = '12px'; // Define icon size
+     if (style) {
+         return `<span class="platform-icon" style="${style} width:${size}; height:${size};" title="${platform}"></span>`;
+     } else {
+         return `<span class="platform-fallback" title="${platform}" style="width:${size}; height:${size}; font-size:10px;">${fallback}</span>`;
+     }
+}
+
+// Function to trigger analysis
+function triggerAnalysis() {
+    statusDiv.textContent = 'Fetching ads...';
+    resultsDiv.style.display = 'none'; // Hide previous results
+    pageInfoDiv.innerHTML = '';
+    adsListUl.innerHTML = '';
+
+    chrome.runtime.sendMessage({ action: "analyzePage" }, (response) => {
+        if (chrome.runtime.lastError) {
+            statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}`;
+            console.error(chrome.runtime.lastError.message);
+            return;
+        }
+
+        if (response.error) {
+            statusDiv.textContent = `Error: ${response.error}`;
+            console.error('Error from background:', response.error);
+        } else if (response.results) {
+            statusDiv.textContent = ''; // Clear status
+            displayResults(response.results);
+        } else {
+            // Clear potential stale page ID
+            currentPageId = null;
+            statusDiv.textContent = 'Received unexpected response from background script.';
+            console.warn("Unexpected response:", response);
+        }
+    });
+}
 
 // --- Keyboard Listener for Escape Key ---
 window.addEventListener('keydown', (event) => {
@@ -50,33 +93,8 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
-analyzeBtn.addEventListener('click', () => {
-    statusDiv.textContent = 'Analyzing...';
-    resultsDiv.style.display = 'none'; // Hide previous results
-    pageInfoDiv.innerHTML = '';
-    adsListUl.innerHTML = '';
-
-    chrome.runtime.sendMessage({ action: "analyzePage" }, (response) => {
-        if (chrome.runtime.lastError) {
-            statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}`;
-            console.error(chrome.runtime.lastError.message);
-            return;
-        }
-
-        if (response.error) {
-            statusDiv.textContent = `Error: ${response.error}`;
-            console.error('Error from background:', response.error);
-        } else if (response.results) {
-            statusDiv.textContent = 'Analysis complete.';
-            displayResults(response.results);
-        } else {
-            // Clear potential stale page ID
-            currentPageId = null;
-            statusDiv.textContent = 'Received unexpected response from background script.';
-            console.warn("Unexpected response:", response);
-        }
-    });
-});
+// --- Trigger Analysis Automatically on Load ---
+triggerAnalysis();
 
 // Close modal listeners
 closeModal.onclick = function() {
@@ -104,6 +122,15 @@ videoModal.onclick = function(event) {
     }
 }
 
+// --- NEW: Add listener for the custom close button ---
+if (customCloseBtn) {
+    customCloseBtn.addEventListener('click', () => {
+        console.log('Close button clicked. Closing sidepanel.');
+        window.close(); // Close the side panel window
+    });
+}
+// --- END NEW ---
+
 // Function to open modal
 function openImageModal(src) {
     if (modal && modalImg) {
@@ -128,21 +155,38 @@ function displayResults(results) {
     adsListUl.innerHTML = ''; // Clear previous ads
     currentPageId = null; // Reset page ID on new results
 
-    // Display Searched Term first
-    pageInfoDiv.innerHTML += `<p><strong>Searched For:</strong> ${results.searchedTerm || 'N/A'}</p>`;
-
+    // -- NEW Page Info Display --
     if (results.foundPage) {
         const page = results.foundPage;
-        pageInfoDiv.innerHTML += `
-            <p><strong>Found Page:</strong> <a href="https://facebook.com/${page.id}" target="_blank">${page.name}</a> (ID: ${page.id})</p>
-            <p><strong>Category:</strong> ${page.category || 'N/A'}</p>
-            <p><strong>Likes:</strong> ${page.likes?.toLocaleString() || 'N/A'}</p>
-            <p><strong>Verified:</strong> ${page.verification || 'N/A'}</p>
-            ${page.ig_username ? `<p><strong>Instagram:</strong> <a href="https://instagram.com/${page.ig_username}" target="_blank">@${page.ig_username}</a> (${page.ig_followers?.toLocaleString() || 'N/A'} followers)</p>` : ''}
-        `;
-        // Store page ID when displaying page info
-        currentPageId = page.id;
+        currentPageId = page.id; // Store page ID
 
+        let pageHTML = `<div class="page-info-block">`; // Wrapper div
+        pageHTML += `<p class="page-id-category">${page.id} - ${page.category || 'N/A'}</p>`;
+
+        // Facebook Row
+        pageHTML += `<p class="page-link-row">`;
+        pageHTML += createPlatformIcon('FACEBOOK');
+        pageHTML += ` <a href="https://facebook.com/${page.id}" target="_blank">${page.name}</a>`;
+        if (page.likes != null) {
+             pageHTML += `&nbsp;- ${page.likes.toLocaleString()} likes`;
+        }
+        pageHTML += `</p>`;
+
+        // Instagram Row (conditional)
+        if (page.ig_username) {
+            pageHTML += `<p class="page-link-row">`;
+            pageHTML += createPlatformIcon('INSTAGRAM');
+            pageHTML += ` <a href="https://instagram.com/${page.ig_username}" target="_blank">@${page.ig_username}</a>`;
+             if (page.ig_followers != null) {
+                 pageHTML += `&nbsp;- ${page.ig_followers.toLocaleString()} followers`;
+             }
+            pageHTML += `</p>`;
+        }
+
+        pageHTML += `</div>`; // Close wrapper
+        pageInfoDiv.innerHTML = pageHTML;
+
+        // Display Ads (if page found)
         if (results.ads && results.ads.length > 0) {
             adsListUl.innerHTML = ''; // Clear only once before loop
             results.ads.forEach((ad, adIndex) => {
@@ -152,12 +196,7 @@ function displayResults(results) {
                 // --- Platform Icons --- (Prepare first)
                 const platforms = ad.platforms || [];
                 const platformIconsHTML = platforms.map(platform => {
-                    const style = platformStyles[platform];
-                    if (style) {
-                        return `<span class="platform-icon" style="${style}" title="${platform}"></span>`;
-                    } else {
-                        return `<span class="platform-fallback" title="${platform}">${platform.substring(0, 2)}</span>`;
-                    }
+                    return createPlatformIcon(platform); // Use helper
                 }).join(' ');
 
                 // --- New Header Structure ---
@@ -321,7 +360,7 @@ function displayResults(results) {
         }
     } else {
         // Page not found case
-        pageInfoDiv.innerHTML += `<p>Facebook page not found.</p>`;
+        pageInfoDiv.innerHTML = `<div class="page-info-block"><p>Facebook page not found for "${results.searchedTerm || 'the given links'}".</p></div>`;
         adsListUl.innerHTML = '<li>Cannot fetch ads as the page was not found.</li>';
     }
 }

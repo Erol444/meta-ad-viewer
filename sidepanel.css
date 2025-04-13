@@ -541,4 +541,31 @@ a:hover {
 }
 /* --- END NEW --- */
 
-/* --- END EU Modal Styles --- */ 
+/* --- END EU Modal Styles --- */
+
+/* --- NEW: Styles for the updated Page Info Block --- */
+.page-info-block {
+    margin-bottom: 15px; /* Space below the block */
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.page-id-category {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.page-link-row {
+    display: flex; /* Use flex for alignment */
+    align-items: center; /* Vertically center icon and text */
+    margin: 4px 0; /* Space between rows */
+    font-size: 0.95em;
+}
+
+.page-link-row .platform-icon,
+.page-link-row .platform-fallback {
+    margin-right: 6px; /* Space between icon and link */
+    flex-shrink: 0; /* Prevent icon from shrinking */
+}
+/* --- END NEW --- */ 
