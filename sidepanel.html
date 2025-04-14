@@ -6,13 +6,22 @@
 </head>
 <body>
     <button id="customCloseBtn" class="close-button" title="Close Panel">&times;</button>
-    <h1>Meta Ad Library (by <a href="https://spydelta.com" target="_blank">SpyDelta</a>)</h1>
+    <h1>Meta Ad Library (by <a href="https://spydelta.com" target="_blank">SpyDelta.com</a>)</h1>
 
     <div id="status"></div>
     <div id="results">
-        <h2>Results</h2>
         <div id="pageInfo"></div>
-        <h3>Ads Found:</h3>
+        <div class="ads-header-controls">
+            <h3>Ads Found</h3>
+            <div class="filter-container">
+                <label for="statusFilter">Status:</label>
+                <select id="statusFilter">
+                    <option value="ACTIVE" selected>Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="ALL">All</option>
+                </select>
+            </div>
+        </div>
         <ul id="adsList"></ul>
         <div id="loadingIndicator" class="loading-indicator">
             <div class="spinner"></div>

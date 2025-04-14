@@ -207,10 +207,10 @@ const getIframeElement = () => document.getElementById(SPYDELTA_IFRAME_ID);
 window.addEventListener('message', (event) => {
     const iframeElement = getIframeElement();
     // Basic security check: Ensure the message is from our iframe
-    // This check might need refinement based on how the iframe src is set
+    // NOTE: Consider using a more specific targetOrigin in postMessage and checking event.origin here
     if (iframeElement && event.source === iframeElement.contentWindow) {
-         if (event.data && event.data.action === 'closeModal') {
-            console.log('Received close message from iframe.');
+         if (event.data && event.data.action === 'closeSpydeltaModal') { // Updated action name
+            console.log('[content] Received closeSpydeltaModal message from iframe.'); // LOGGING
             if (isSpyDeltaVisible) {
                  toggleSpyDeltaModal(); // Use the toggle function to hide it
             }

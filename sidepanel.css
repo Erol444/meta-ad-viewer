@@ -43,7 +43,8 @@ h1 {
 }
 
 #adsList li {
-    border: 1px solid #eee;
+    border: 1px solid #d0d0d0;
+    border-radius: 5px;
     padding: 10px;
     margin-bottom: 5px;
     font-size: 0.9em;
@@ -367,50 +368,63 @@ a:hover {
      /* Adjust if needed, mostly inherits from .ad-cta-link */
 }
 
-/* --- NEW: Ad Header Styles --- */
+/* --- NEW: Ad Header Styles (Revised for Two Rows) --- */
 .ad-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* Align items to the top */
+    /* Remove old flex properties */
     margin-bottom: 10px; /* Space below header */
     padding-bottom: 5px;
-    border-bottom: 1px dashed #eee; /* Separator like old meta */
+    border-bottom: 1px dashed #eee; /* Separator */
 }
 
-.ad-header-left {
-    /* Takes up remaining space */
-    flex-grow: 1;
-    margin-right: 10px; /* Space between left and right */
+.ad-header-row {
+    display: flex;
+    justify-content: space-between; /* Push left/right cols apart */
+    align-items: center; /* Vertically align items in the row */
+    margin-bottom: 2px; /* Space between rows */
+    min-height: 20px; /* Ensure rows have some minimum height for alignment */
 }
-
-.ad-header-left div {
-    margin-bottom: 3px; /* Space between ID and Duration */
-     font-size: 0.9em; /* Slightly smaller like meta */
-     color: #555;
-}
-.ad-header-left div:last-child {
+.ad-header-row:last-child {
     margin-bottom: 0;
 }
-.ad-header-left a {
+
+.ad-header-col-left {
+    /* Allow shrinking, but prioritize right column */
+    flex-shrink: 1;
+    margin-right: 10px; /* Space between left and right */
+    text-align: left;
+    font-size: 0.9em;
+    color: #555;
+}
+.ad-header-col-left a {
      color: #007bff; /* Keep link color */
 }
-.ad-header-left strong {
+.ad-header-col-left strong {
     color: #333; /* Make title slightly darker */
     font-weight: bold;
 }
 
-
-.ad-header-right {
-    /* Align icons to the right, flex-start alignment from parent handles top */
+.ad-header-col-right {
+    display: flex; /* Allow items inside right col to align */
+    align-items: center;
+    justify-content: flex-end; /* Align content (icons/status/duration) to the right */
+    gap: 8px; /* Space between icons and status/duration */
     text-align: right;
-    flex-shrink: 0; /* Prevent shrinking if icons wrap */
+    font-size: 0.9em;
+    color: #555;
+    flex-shrink: 0; /* Prevent right column from shrinking too much */
 }
+
+/* Remove or comment out old header styles */
+/* .ad-header-left { ... } */
+/* .ad-header-right { ... } */
+/* .ad-header-right-top-row { ... } */
+
 /* --- End Ad Header Styles --- */
 
-/* --- NEW: Transparency Button Style --- */
+/* --- NEW: Transparency Button Style (Adjusted) --- */
 .transparency-btn {
-    display: block; /* Make it block level to appear below icons */
-    margin-top: 5px; /* Space above the button */
+    /* display: block; REMOVED */
+    /* margin-top: 5px; REMOVED */
     padding: 3px 6px;
     font-size: 0.8em;
     cursor: pointer;
@@ -454,14 +468,14 @@ a:hover {
 }
 /* --- END NEW --- */
 
-/* --- Platform Icon Styles (mostly unchanged, check vertical alignment) --- */
+/* --- Platform Icon Styles (check vertical alignment) --- */
 .platform-icon {
     display: inline-block;
     width: 12px; /* Default width from examples */
     height: 12px; /* Default height from examples */
     background-color: #8a8d91; /* Default Ad Library icon color */
     vertical-align: middle; /* Align icons with text */
-    margin-right: 4px; /* Space between icons */
+    /* margin-right: 4px; REMOVED - Use gap in parent .ad-header-col-right */
 }
 
 /* Style for fallback text if icon not found */
@@ -578,6 +592,72 @@ a:hover {
 }
 /* --- END NEW --- */
 
+/* --- NEW: Status Badge Styles --- */
+.status-badge {
+    display: inline-flex; /* Use flex for icon + text alignment */
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px; /* Pill shape */
+    font-size: 0.85em;
+    font-weight: bold;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.status-badge.active {
+    background-color: #e7f7e7; /* Light green background */
+    color: #1e7e34; /* Dark green text */
+}
+
+.status-badge.inactive {
+    background-color: #f8f9fa; /* Light gray background */
+    color: #495057; /* Dark gray text */
+    border: 1px solid #dee2e6; /* Subtle border for inactive */
+    padding: 2px 7px; /* Adjust padding slightly because of border */
+}
+
+.status-badge .icon-active,
+.status-badge .icon-inactive {
+    display: inline-block;
+    width: 14px; /* Adjust size as needed */
+    height: 14px;
+    margin-right: 5px; /* Space between icon and text */
+    border-radius: 50%; /* Make icons circular */
+}
+
+.status-badge .icon-active {
+    background-color: #28a745; /* Green check background */
+    /* Simple checkmark using pseudo-element */
+    position: relative;
+}
+.status-badge .icon-active::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.status-badge .icon-inactive {
+    background-color: #007bff; /* Blue pencil background */
+    /* Simple pencil/dash using pseudo-element */
+    position: relative;
+}
+.status-badge .icon-inactive::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 6px; /* Center vertically */
+    width: 8px;
+    height: 2px;
+    background-color: white;
+    transform: rotate(-45deg); /* Slight slant like pencil */
+}
+/* --- END NEW --- */
+
 /* --- END EU Modal Styles --- */
 
 /* --- NEW: Styles for the updated Page Info Block --- */
@@ -633,5 +713,36 @@ a:hover {
     100% {
         transform: rotate(360deg);
     }
+}
+/* --- END NEW --- */
+
+/* --- NEW: Styles for Ads Header Controls --- */
+.ads-header-controls {
+    display: flex;
+    justify-content: space-between; /* Push heading and filter apart */
+    align-items: center;
+    margin-bottom: 5px; /* Space before ad list */
+}
+
+.ads-header-controls h3 {
+    margin: 0; /* Remove default margins */
+}
+
+.filter-container {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Space between label and select */
+}
+
+.filter-container label {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.filter-container select {
+    padding: 2px 4px;
+    font-size: 0.9em;
+    border-radius: 3px;
+    border: 1px solid #ccc;
 }
 /* --- END NEW --- */ 

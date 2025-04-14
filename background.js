@@ -91,6 +91,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle Analysis Request (from sidepanel)
   if (message.action === "analyzePage") {
+    const statusFilter = message.filter || 'ACTIVE'; // Get filter from message, default to ACTIVE
+    console.log(`[background] Received analyzePage request with filter: ${statusFilter}`); // LOGGING
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const activeTab = tabs[0];
       if (activeTab && activeTab.id) {
@@ -104,9 +107,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (chrome.runtime.lastError) throw new Error(`ExtractLinks Error: ${chrome.runtime.lastError.message}`);
           if (!response || !response.data) throw new Error("No data received from content script");
           console.log('Received data from content script:', response.data);
-          return scrapeAndSendData(response.data);
+          // Pass the received statusFilter to scrapeAndSendData
+          return scrapeAndSendData(response.data, statusFilter);
         })
         .then(scrapeResults => {
+           console.log("[background] Sending analyzePage response:", JSON.stringify(scrapeResults)); // LOGGING
            sendResponse({ results: scrapeResults });
         })
         .catch(error => {
@@ -155,7 +160,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // --- NEW: Handle Request for More Ads (Pagination) ---
   else if (message.action === "getMoreAds") {
-     const { pageId, cursor } = message.data;
+     const { pageId, cursor, statusFilter } = message.data;
      if (!pageId || !cursor) {
          sendResponse({ error: "Missing pageId or cursor for pagination" });
          return false;
@@ -163,11 +168,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
      (async () => {
          try {
              const scraper = await getScraperInstance();
-             const results = await scraper.getPageAds(pageId, cursor); // Fetch next page
+             const results = await scraper.getPageAds(pageId, cursor, statusFilter || 'ACTIVE');
+             console.log("[background] Sending getMoreAds response:", JSON.stringify(results)); // LOGGING
              sendResponse({ results: results }); // Send back { ads: [...], page_info: {...} }
          } catch (error) {
              console.error(`Error fetching more ads (page ${pageId}, cursor ${cursor}):`, error);
              sendResponse({ error: `Failed to fetch more ads: ${error.message}` });
+         }
+     })();
+     return true; // Async response
+  }
+
+  // --- NEW: Handle Fetch Filtered Ads ---
+  else if (message.action === "fetchFilteredAds") {
+     const { pageId, statusFilter } = message.data;
+     if (!pageId || !statusFilter) {
+         sendResponse({ error: "Missing pageId or statusFilter for filtered fetch" });
+         return false;
+     }
+     (async () => {
+         try {
+             const scraper = await getScraperInstance();
+             // Directly call findFacebookAds (which calls scraper.getPageAds)
+             const results = await findFacebookAds(scraper, pageId, statusFilter); 
+             console.log("[background] Sending fetchFilteredAds response:", JSON.stringify(results)); // LOGGING
+             sendResponse({ results: results }); // Send back { ads: [...], page_info: {...} }
+         } catch (error) {
+             console.error(`Error fetching filtered ads (page ${pageId}, status ${statusFilter}):`, error);
+             sendResponse({ error: `Failed to fetch filtered ads: ${error.message}` });
          }
      })();
      return true; // Async response
@@ -178,7 +206,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // --- Combined Scraping Logic (Return results object) ---
-async function scrapeAndSendData(pageData) {
+async function scrapeAndSendData(pageData, statusFilter = 'ACTIVE') {
     try {
         const currentScraper = await getScraperInstance();
         const targetPage = await findFacebookPage(currentScraper, pageData);
@@ -187,8 +215,8 @@ async function scrapeAndSendData(pageData) {
             : (pageData.instagramLink ? (pageData.instagramLink.match(/instagram\.com\/([\w.]+)/)?.[1] || pageData.instagramLink) : 'current page');
 
         if (targetPage) {
-            const adsResult = await findFacebookAds(currentScraper, targetPage.id);
-            console.log(`Found ${adsResult.ads.length} ads for page ${targetPage.name}.`);
+            const adsResult = await findFacebookAds(currentScraper, targetPage.id, statusFilter);
+            console.log(`Found ${adsResult.ads.length} ads for page ${targetPage.name} (Status: ${statusFilter}).`);
             return {
                 searchedTerm: targetPage.name || searchTerm,
                 foundPage: targetPage,
@@ -247,12 +275,12 @@ async function findFacebookPage(scraperInstance, pageData) {
     }
 }
 
-async function findFacebookAds(scraperInstance, pageIdToSearch) {
+async function findFacebookAds(scraperInstance, pageIdToSearch, activeStatus = 'ACTIVE') {
     if (!pageIdToSearch) return [];
     console.log(`Fetching ads for Page ID: ${pageIdToSearch}`);
     try {
-        const adsResult = await scraperInstance.getPageAds(pageIdToSearch);
-        console.log(`Found ${adsResult.ads.length} ads for page ID ${pageIdToSearch}. Has next: ${adsResult.page_info.has_next_page}`);
+        const adsResult = await scraperInstance.getPageAds(pageIdToSearch, null, activeStatus);
+        console.log(`Found ${adsResult.ads.length} ads for page ID ${pageIdToSearch} (Status: ${activeStatus}). Has next: ${adsResult.page_info.has_next_page}`);
         return adsResult;
     } catch (error) {
         console.error(`Error fetching ads for page ID ${pageIdToSearch}:`, error);

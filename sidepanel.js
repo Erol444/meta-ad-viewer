@@ -22,6 +22,9 @@ const closeModal = mediaModal?.querySelector(".modal-close"); // Find close with
 // --- NEW: Loading Indicator Element ---
 const loadingIndicator = document.getElementById("loadingIndicator"); 
 
+// --- NEW: Filter Dropdown Element ---
+const statusFilterSelect = document.getElementById("statusFilter");
+
 // --- NEW: EU Modal elements ---
 const euModal = document.getElementById("euModal");
 const euModalContent = document.getElementById("euModalContent");
@@ -52,38 +55,52 @@ function createPlatformIcon(platform) {
      }
 }
 
-// Function to trigger analysis
+// Function to trigger analysis (Initial Load)
 function triggerAnalysis() {
-    statusDiv.textContent = 'Fetching ads...';
-    resultsDiv.style.display = 'none'; // Hide previous results
+    const selectedStatus = statusFilterSelect ? statusFilterSelect.value : 'ACTIVE'; // Get selected filter
+    console.log(`[sidepanel] Triggering INITIAL analysis with status filter: ${selectedStatus}`); // LOGGING
+
+    // Clear everything for initial analysis
+    statusDiv.textContent = `Fetching page info & ${selectedStatus.toLowerCase()} ads...`; // Update status text
+    resultsDiv.style.display = 'none'; 
     pageInfoDiv.innerHTML = '';
     adsListUl.innerHTML = '';
-    currentResultsData = null; // Reset results data
-    currentAdCursor = null; // Reset pagination
+    currentResultsData = null; 
+    currentAdCursor = null; 
     hasMoreAds = false;
     isLoadingMoreAds = false;
-    if (loadingIndicator) loadingIndicator.style.display = 'none'; // Hide indicator initially
-    statusDiv.classList.remove('loading-more'); // Remove loading class if present
+    if (loadingIndicator) loadingIndicator.style.display = 'none'; 
+    statusDiv.classList.remove('loading-more');
 
-    chrome.runtime.sendMessage({ action: "analyzePage" }, (response) => {
+    // Send filter value with the message
+    chrome.runtime.sendMessage({ action: "analyzePage", filter: selectedStatus }, (response) => {
+        // Reset status text after response, regardless of outcome initially
+        statusDiv.textContent = ''; 
+        
         if (chrome.runtime.lastError) {
             statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}`;
             console.error(chrome.runtime.lastError.message);
+            resultsDiv.style.display = 'block'; // Show results area to display error
+            pageInfoDiv.innerHTML = '<p class="error">Failed to analyze page.</p>';
             return;
         }
 
         if (response.error) {
             statusDiv.textContent = `Error: ${response.error}`;
             console.error('Error from background:', response.error);
+            resultsDiv.style.display = 'block'; // Show results area to display error
+            pageInfoDiv.innerHTML = '<p class="error">Failed to analyze page.</p>';
         } else if (response.results) {
-            statusDiv.textContent = ''; // Clear status
+            // displayResults handles showing the results div and clearing status
             currentResultsData = response.results; // Store results globally
-            displayResults(currentResultsData);
+            displayResults(currentResultsData); 
         } else {
             // Clear potential stale page ID
             currentPageId = null;
             statusDiv.textContent = 'Received unexpected response from background script.';
             console.warn("Unexpected response:", response);
+            resultsDiv.style.display = 'block'; // Show results area
+            pageInfoDiv.innerHTML = '<p class="error">Unexpected response during analysis.</p>';
         }
     });
 }
@@ -147,14 +164,16 @@ if (mediaModal) {
     }
 }
 
-// --- NEW: Add listener for the custom close button ---
+// --- Corrected listener for the custom close button (postMessage) ---
 if (customCloseBtn) {
     customCloseBtn.addEventListener('click', () => {
-        console.log('Close button clicked. Closing sidepanel.');
-        window.close(); // Close the side panel window
+        console.log('[sidepanel] Custom close button clicked. Sending message to parent (content script).'); // LOGGING
+        // Send message to the parent window (content script)
+        window.parent.postMessage({ action: 'closeSpydeltaModal' }, '*'); // Use a specific targetOrigin if possible for security
     });
+} else {
+    console.error('[sidepanel] Custom close button element not found!'); // LOGGING
 }
-// --- END NEW ---
 
 // --- NEW: EU Modal Functions ---
 function closeEuModalFunction() {
@@ -341,7 +360,7 @@ function displayResults(results) {
                 currentAdCursor = null;
                 hasMoreAds = false;
             }
-            console.log(`Initial load: Has more ads? ${hasMoreAds}, Cursor: ${currentAdCursor}`);
+            console.log(`[sidepanel] Initial load: Has more ads? ${hasMoreAds}, Cursor: ${currentAdCursor}`); // LOGGING
         } else {
             adsListUl.innerHTML = '<li>No active ads found for this page.</li>';
         }
@@ -371,21 +390,47 @@ function appendAdsToList(ads, startIndex = 0) {
             return createPlatformIcon(platform); // Use helper
         }).join(' ');
 
-        // --- Ad Header Structure ---
+        // --- Ad Header Structure (Revised for Two Rows) --- 
+        // Row 1 Elements
+        const adTypeAndIdHTML = `
+            <div class="ad-header-col-left">
+                 <strong>${ad.display_format} Ad</strong> (<a href="https://www.facebook.com/ads/library/?id=${ad.id}&country=ALL" target="_blank">${ad.id}</a>)
+            </div>
+        `;
+        const platformAndStatusHTML = `
+            <div class="ad-header-col-right">
+                ${platformIconsHTML || 'N/A'}
+                ${ad.active === true ? '<span class="status-badge active"><span class="icon-active"></span>Active</span>' : ad.active === false ? '<span class="status-badge inactive"><span class="icon-inactive"></span>Inactive</span>' : ''}
+            </div>
+        `;
+
+        // Row 2 Elements
+        const euButtonHTML = `
+            <div class="ad-header-col-left">
+                ${ad.is_aaa_eligible ? `<button class="transparency-btn" data-ad-id="${ad.id}">EU Transparency</button>` : '<div>&nbsp;</div>'}
+            </div>
+        `; // Added placeholder div for alignment when button is absent
+        const durationHTML = `
+            <div class="ad-header-col-right">
+                ${ad.start_date ? new Date(ad.start_date * 1000).toLocaleDateString() : 'N/A'} - ${ad.end_date ? new Date(ad.end_date * 1000).toLocaleDateString() : 'N/A'}
+            </div>
+        `;
+
+        // --- Construct Header HTML --- 
         let adHTML = `
             <div class="ad-header">
-                <div class="ad-header-left">
-                    <div><strong>${ad.display_format || 'Ad'}</strong> (<a href="https://www.facebook.com/ads/library/?id=${ad.id}&country=ALL" target="_blank">${ad.id}</a>)</div>
-                    <div><strong>Duration:</strong> ${ad.start_date ? new Date(ad.start_date * 1000).toLocaleDateString() : 'N/A'} - ${ad.end_date ? new Date(ad.end_date * 1000).toLocaleDateString() : 'N/A'}</div>
+                <div class="ad-header-row">
+                    ${adTypeAndIdHTML}
+                    ${platformAndStatusHTML}
                 </div>
-                <div class="ad-header-right">
-                     ${platformIconsHTML || 'N/A'}
-                    ${ad.is_aaa_eligible ? `<button class="transparency-btn" data-ad-id="${ad.id}">EU Transparency</button>` : ''}
+                 <div class="ad-header-row">
+                    ${euButtonHTML}
+                    ${durationHTML}
                 </div>
             </div>
         `;
 
-        // --- Display Creatives & Text ---
+        // --- Display Creatives & Text --- 
         if (ad.creatives && ad.creatives.length > 0) {
             const firstCreative = ad.creatives[0]; // Use first creative for representative text
 
@@ -398,7 +443,7 @@ function appendAdsToList(ads, startIndex = 0) {
                 ${firstCreative.body ? `<div class="ad-body">${firstCreative.body.substring(0, 300)}${firstCreative.body.length > 300 ? '...' : ''}</div>` : ''}
             `;
 
-            // --- Media Container ---
+            // --- Media Container --- 
             adHTML += `<div class="ad-media-container">`;
             if (ad.creatives.length === 1) {
                 // Single Creative
@@ -446,9 +491,9 @@ function appendAdsToList(ads, startIndex = 0) {
                 `;
             }
             adHTML += `</div>`; // Close media-container
-            // --- End Media Container ---
+            // --- End Media Container --- 
 
-            // --- CTA / Link / Caption Area Below Media ---
+            // --- CTA / Link / Caption Area Below Media --- 
              adHTML += `<div class="ad-cta-area">`;
              adHTML += `   <div class="ad-caption">${firstCreative.caption || '&nbsp;'}</div>`; // Use caption if available, or non-breaking space
              if (firstCreative.cta_text && firstCreative.link_url) {
@@ -457,7 +502,7 @@ function appendAdsToList(ads, startIndex = 0) {
                             </a>`;
              } else if (firstCreative.cta_text) {
                  // CTA text without link
-                 adHTML += `<span class="ad-cta-link">${firstCreative.cta_text}}</span>`;
+                 adHTML += `<span class="ad-cta-link">${firstCreative.cta_text}</span>`; 
              } else {
                  adHTML += `<div></div>`; // Placeholder to maintain structure if no CTA
              }
@@ -470,13 +515,24 @@ function appendAdsToList(ads, startIndex = 0) {
         li.innerHTML = adHTML;
         adsListUl.appendChild(li);
 
-        // --- Add Event Listeners AFTER appending li ---
+        // --- Add Event Listeners AFTER appending li --- 
         // Image Modal listeners (for actual img tags)
         li.querySelectorAll('.ad-image').forEach(img => {
             img.addEventListener('click', () => {
                 const slide = img.closest('.slide');
-                const slideIndex = slide ? Array.from(slide.parentNode.children).indexOf(slide) : 0;
-                openMediaModal(adIndex, slideIndex); // Pass adIndex and creativeIndex
+                const liElement = img.closest('li'); // Find the parent LI
+                if (!liElement) return; // Safety check
+                // Get adIndex from the LI's data attribute INSTEAD of the closure
+                const adIndexFromData = parseInt(liElement.getAttribute('data-ad-index'), 10);
+                const creativeIndex = slide ? Array.from(slide.parentNode.children).indexOf(slide) : 0;
+
+                if (isNaN(adIndexFromData)) {
+                    console.error("Could not parse adIndex from data attribute", liElement);
+                    return;
+                }
+
+                console.log(`[sidepanel] Image clicked: adIndex=${adIndexFromData} (from data attr), creativeIndex=${creativeIndex}`); // LOGGING
+                openMediaModal(adIndexFromData, creativeIndex); // Use index from data attribute
             });
         });
 
@@ -491,17 +547,28 @@ function appendAdsToList(ads, startIndex = 0) {
                     event.stopPropagation();
                     
                     const slide = video.closest('.slide');
-                    const slideIndex = slide ? Array.from(slide.parentNode.children).indexOf(slide) : 0;
+                    const liElement = video.closest('li'); // Find the parent LI
+                    if (!liElement) return; // Safety check
+                    // Get adIndex from the LI's data attribute INSTEAD of the closure
+                    const adIndexFromData = parseInt(liElement.getAttribute('data-ad-index'), 10);
+                    const creativeIndex = slide ? Array.from(slide.parentNode.children).indexOf(slide) : 0;
+
+                    if (isNaN(adIndexFromData)) {
+                        console.error("Could not parse adIndex from data attribute", liElement);
+                        return;
+                    }
+                    
+                    console.log(`[sidepanel] Video clicked: adIndex=${adIndexFromData} (from data attr), creativeIndex=${creativeIndex}`); // LOGGING
                     
                     // PAUSE the original video before opening modal
                     video.pause();
 
-                    openMediaModal(adIndex, slideIndex); // Pass adIndex and creativeIndex
+                    openMediaModal(adIndexFromData, creativeIndex); // Use index from data attribute
                 }
            });
         });
 
-        // --- NEW: Transparency Button Listener ---
+        // --- Transparency Button Listener --- 
         const transparencyBtn = li.querySelector('.transparency-btn');
         if (transparencyBtn) {
             transparencyBtn.addEventListener('click', () => {
@@ -514,7 +581,7 @@ function appendAdsToList(ads, startIndex = 0) {
                 }
             });
         }
-        // --- END: Transparency Button Listener ---
+        // --- END: Transparency Button Listener --- 
 
         // Carousel setup
         if (ad.creatives && ad.creatives.length > 1) {
@@ -525,7 +592,7 @@ function appendAdsToList(ads, startIndex = 0) {
                 setupCarousel(carouselElement);
             }
         }
-    });
+    }); // End ads.forEach
 }
 
 function setupCarousel(carouselElement) {
@@ -654,43 +721,127 @@ function populateEuModal(details) {
                 `;
             });
             contentHTML += `</tbody>`;
-            // --- Add Total Row --- 
-            contentHTML += `<tfoot>`;
+            // --- Add Total Row ---
             contentHTML += `
-                 <tr>
-                      <td><strong>Total</strong></td>
-                      <td><strong>${totalMale.toLocaleString()}</strong></td>
-                      <td><strong>${totalFemale.toLocaleString()}</strong></td>
-                 </tr>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>${totalMale.toLocaleString()}</strong></td>
+                    <td><strong>${totalFemale.toLocaleString()}</strong></td>
+                </tr>
             `;
-            contentHTML += `</tfoot>`;
-            contentHTML += `</table>`;
-        } else {
-             contentHTML += `<p>No age/gender breakdown data available for the primary country.</p>`;
         }
-    } else {
-        contentHTML += `<p>No demographic breakdown data available.</p>`;
     }
 
     euModalContent.innerHTML = contentHTML;
 }
 
-function populateEuModalError(errorMessage) {
-    if (!euModalContent) return;
-    euModalContent.innerHTML = `
-        <h3>Error Fetching EU Details</h3>
-        <p class="error">${errorMessage}</p>
-    `;
+// --- NEW: Function to Refetch Ads Based on Filter ---
+function refetchAds(statusFilter) {
+    if (!currentPageId) {
+        console.warn("[sidepanel] Cannot refetch ads, currentPageId is missing. Triggering full analysis.");
+        triggerAnalysis(); // Fallback to full analysis if we lost page context
+        return;
+    }
+    if (isLoadingMoreAds) {
+        console.log("[sidepanel] Already loading ads, ignoring filter change for now.");
+        return; // Don't interrupt existing load
+    }
+
+    console.log(`[sidepanel] Refetching ads for page ${currentPageId} with filter: ${statusFilter}`);
+
+    // Reset only ad-specific things
+    adsListUl.innerHTML = '';
+    currentAdCursor = null;
+    hasMoreAds = false;
+    isLoadingMoreAds = true; // Set loading state
+    if (loadingIndicator) loadingIndicator.style.display = 'flex'; // Show loading indicator
+    statusDiv.textContent = `Fetching ${statusFilter.toLowerCase()} ads...`; // Indicate loading status
+
+    // Clear ads from currentResultsData before fetching new ones
+    if (currentResultsData) {
+        currentResultsData.ads = [];
+    }
+
+    chrome.runtime.sendMessage(
+        { action: "fetchFilteredAds", data: { pageId: currentPageId, statusFilter: statusFilter } },
+        (response) => {
+            isLoadingMoreAds = false;
+            statusDiv.textContent = ''; // Clear status
+            if (loadingIndicator) loadingIndicator.style.display = 'none'; // Hide indicator
+
+            if (chrome.runtime.lastError) {
+                console.error('Error refetching ads:', chrome.runtime.lastError.message);
+                adsListUl.innerHTML = `<li>Error loading ads: ${chrome.runtime.lastError.message}</li>`;
+                hasMoreAds = false; 
+                return;
+            }
+
+            if (response.error) {
+                console.error('Error from background refetching ads:', response.error);
+                adsListUl.innerHTML = `<li>Error loading ads: ${response.error}</li>`;
+                hasMoreAds = false; 
+            } else if (response.results && response.results.ads) {
+                console.log(`[sidepanel] Received ${response.results.ads.length} filtered ads. Has next page: ${response.results.page_info?.has_next_page}`);
+                
+                // Store ads in currentResultsData
+                if (currentResultsData) {
+                    currentResultsData.ads = response.results.ads;
+                } else {
+                    // Should not happen if initial load worked, but handle defensively
+                     console.warn("currentResultsData was not initialized correctly before refetching.");
+                     currentResultsData = { ads: response.results.ads }; // Need to retain foundPage if possible!
+                }
+                
+                appendAdsToList(response.results.ads, 0); // Append new ads starting from index 0
+
+                // Update pagination state from the new response
+                if (response.results.page_info) {
+                    currentAdCursor = response.results.page_info.end_cursor;
+                    hasMoreAds = response.results.page_info.has_next_page;
+                } else {
+                    console.warn("Refetch response missing page_info.");
+                    currentAdCursor = null;
+                    hasMoreAds = false;
+                }
+
+                if (!hasMoreAds && response.results.ads.length === 0) {
+                    adsListUl.innerHTML = `<li>No ${statusFilter.toLowerCase()} ads found for this page.</li>`;
+                } else if (!hasMoreAds) {
+                     console.log("No more ads to load for this filter.");
+                }
+
+                // LOGGING state after refetch response handling
+                console.log(`[sidepanel] State after refetchAds response: loading=${isLoadingMoreAds}, hasMore=${hasMoreAds}, cursor=${currentAdCursor}`);
+            } else {
+                console.warn('Unexpected response for refetching ads:', response);
+                adsListUl.innerHTML = '<li>Unexpected error loading ads.</li>';
+                hasMoreAds = false; 
+            }
+        }
+    );
 }
-// --- END NEW ---
+
+// --- Event Listener for Filter Change (Calls refetchAds) ---
+if (statusFilterSelect) {
+    statusFilterSelect.addEventListener('change', () => {
+        const selectedStatus = statusFilterSelect.value;
+        console.log(`[sidepanel] Status filter changed to: ${selectedStatus}`);
+        refetchAds(selectedStatus); // Call the new refetch function
+    });
+} else {
+    console.error("[sidepanel] Status filter select element not found!");
+}
 
 // --- NEW: Scroll Listener for Infinite Loading ---
 window.addEventListener('scroll', () => {
-    // Check if we should load more
-    if (!isLoadingMoreAds && hasMoreAds && currentPageId && currentAdCursor) {
+    const scrollCheck = !isLoadingMoreAds && hasMoreAds && currentPageId && currentAdCursor;
+    // console.log(`[sidepanel] Scroll check: loading=${isLoadingMoreAds}, hasMore=${hasMoreAds}, pageId=${currentPageId}, cursor=${currentAdCursor}`); // Verbose log
+    if (scrollCheck) {
         const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-        // Trigger load when user is near the bottom (e.g., 80% scrolled)
-        if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+        const nearBottom = scrollTop + clientHeight >= scrollHeight * 0.8;
+        // console.log(`[sidepanel] Scroll position check: nearBottom=${nearBottom} (sT=${scrollTop}, cH=${clientHeight}, sH=${scrollHeight})`); // Verbose log
+        if (nearBottom) {
+            console.log("[sidepanel] Scroll threshold reached, calling loadMoreAds."); // LOG: Indicate call attempt
             loadMoreAds();
         }
     }
@@ -699,64 +850,81 @@ window.addEventListener('scroll', () => {
 // --- NEW: Function to Load More Ads ---
 function loadMoreAds() {
     if (isLoadingMoreAds || !hasMoreAds || !currentPageId || !currentAdCursor) {
-        return; // Already loading, no more ads, or missing data
+        // Log why we bailed
+        console.log(`[sidepanel] loadMoreAds bail: loading=${isLoadingMoreAds}, hasMore=${hasMoreAds}, pageId=${currentPageId}, cursor=${currentAdCursor}`);
+        return; 
     }
+    const selectedStatus = statusFilterSelect ? statusFilterSelect.value : 'ACTIVE'; // Get current filter
+    console.log(`[sidepanel] Loading more ads for page ${currentPageId} with filter: ${selectedStatus}`);
 
-    isLoadingMoreAds = true;
-    statusDiv.textContent = ''; // Clear status text
-    if (loadingIndicator) loadingIndicator.style.display = 'flex'; // Show spinner
-    
-    // Calculate the starting index for the ads we are about to append
-    const currentAdsLength = currentResultsData?.ads?.length || 0;
-    console.log(`[sidepanel] loadMoreAds: currentResultsData.ads.length = ${currentAdsLength}`); // LOGGING
-    const startIndexForAppend = currentAdsLength;
-    console.log(`[sidepanel] loadMoreAds: Requesting more ads starting from index ${startIndexForAppend} (cursor: ${currentAdCursor})`); // LOGGING
+    isLoadingMoreAds = true; // Set loading state
+    if (loadingIndicator) loadingIndicator.style.display = 'flex'; // Show loading indicator
+
+    // --- RE-ADD Calculation for startIndexForAppend --- 
+    const startIndexForAppend = currentResultsData?.ads?.length || 0;
+    console.log(`[sidepanel] loadMoreAds: Requesting more ads starting from index ${startIndexForAppend} (cursor: ${currentAdCursor}, status: ${selectedStatus})`); // LOGGING
 
     chrome.runtime.sendMessage(
-        { action: "getMoreAds", data: { pageId: currentPageId, cursor: currentAdCursor } },
+        // Send statusFilter with the message - CORRECT ACTION is getMoreAds
+        { action: "getMoreAds", data: { pageId: currentPageId, cursor: currentAdCursor, statusFilter: selectedStatus } },
         (response) => {
             isLoadingMoreAds = false;
             if (loadingIndicator) loadingIndicator.style.display = 'none'; // Hide spinner
+            statusDiv.textContent = ''; // Clear status
 
             if (chrome.runtime.lastError) {
-                console.error('Error fetching more ads:', chrome.runtime.lastError.message);
-                statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}`;
-                hasMoreAds = false; // Stop trying on error
-            } else if (response.error) {
-                console.error('Error from background fetching more ads:', response.error);
-                statusDiv.textContent = `Error: ${response.error}`;
-                hasMoreAds = false; // Stop trying on error
+                console.error('Error loading more ads:', chrome.runtime.lastError.message);
+                adsListUl.innerHTML = `<li>Error loading more ads: ${chrome.runtime.lastError.message}</li>`;
+                hasMoreAds = false; 
+                return;
+            }
+
+            if (response.error) {
+                console.error('Error from background loading more ads:', response.error);
+                adsListUl.innerHTML = `<li>Error loading more ads: ${response.error}</li>`;
+                hasMoreAds = false; 
             } else if (response.results && response.results.ads) {
-                console.log(`Received ${response.results.ads.length} more ads. Has next page: ${response.results.page_info?.has_next_page}`);
+                console.log(`[sidepanel] Received ${response.results.ads.length} more ads. Has next page: ${response.results.page_info?.has_next_page}`);
                 
-                // Append new ads using the calculated starting index
+                // --- Corrected Logic for Updating currentResultsData.ads ---
+                // 1. Ensure currentResultsData and its ads array exist
+                if (!currentResultsData) {
+                    console.warn("currentResultsData was not initialized before loading more ads.");
+                    currentResultsData = { ads: [] }; // Initialize if missing
+                }
+                if (!currentResultsData.ads) {
+                    currentResultsData.ads = []; // Initialize ads array if missing
+                }
+
+                // 2. Append new ads to the UI using the calculated starting index
                 appendAdsToList(response.results.ads, startIndexForAppend); 
                 
-                 // --- Concatenate new ads to global data *after* appending to UI ---
-                if (currentResultsData && currentResultsData.ads) {
-                     currentResultsData.ads = currentResultsData.ads.concat(response.results.ads);
-                } else {
-                     console.warn("currentResultsData.ads was not initialized correctly before appending.");
-                     currentResultsData = { ...(currentResultsData || {}), ads: response.results.ads };
-                }
+                // 3. Concatenate the NEW ads to the EXISTING ads array *after* appending to UI
+                currentResultsData.ads = currentResultsData.ads.concat(response.results.ads);
+                // --- End Corrected Logic ---
 
                 // Update pagination state from the new response
                 if (response.results.page_info) {
                     currentAdCursor = response.results.page_info.end_cursor;
                     hasMoreAds = response.results.page_info.has_next_page;
                 } else {
-                    console.warn("Pagination response missing page_info.");
+                    console.warn("Loading more ads response missing page_info.");
                     currentAdCursor = null;
                     hasMoreAds = false;
                 }
 
-                if (!hasMoreAds) {
-                    console.log("No more ads to load.");
+                if (!hasMoreAds && response.results.ads.length === 0) {
+                    adsListUl.innerHTML = `<li>No more ${selectedStatus.toLowerCase()} ads found for this page.</li>`;
+                } else if (!hasMoreAds) {
+                     console.log("[sidepanel] No more ads to load for this filter.");
                 }
             } else {
                 console.warn('Unexpected response for loading more ads:', response);
+                adsListUl.innerHTML = '<li>Unexpected error loading more ads.</li>';
                 hasMoreAds = false; // Stop trying on unexpected response
             }
+            // LOGGING state after loadMoreAds response handling
+            console.log(`[sidepanel] State after loadMoreAds response: loading=${isLoadingMoreAds}, hasMore=${hasMoreAds}, cursor=${currentAdCursor}`);
         }
     );
 }

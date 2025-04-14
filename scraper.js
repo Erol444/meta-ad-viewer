@@ -43,7 +43,7 @@ class FacebookAd {
         display_format = null, // Added: 'IMAGE', 'VIDEO', 'DCO', 'DPA', etc.
         creatives = [],       // Added: Array of Creative objects
         platforms = null, start_date = null, end_date = null, fetch_time = null,
-        is_aaa_eligible = null
+        is_aaa_eligible = null, active = null,
     }) {
         this.id = id;
         this.page_id = page_id;
@@ -55,6 +55,7 @@ class FacebookAd {
         this.end_date = end_date;
         this.fetch_time = fetch_time || new Date().toISOString();
         this.is_aaa_eligible = is_aaa_eligible;
+        this.active = active;
     }
 }
 
@@ -432,12 +433,12 @@ class FacebookScraper {
         }
     }
 
-    async getPageAds(pageId, cursor = null) {
+    async getPageAds(pageId, cursor = null, activeStatus = 'ACTIVE') {
         const url = "https://www.facebook.com/api/graphql/";
         const friendlyName = 'AdLibrarySearchPaginationQuery';
 
         const variables = {
-            activeStatus: "ACTIVE", // or INACTIVE or ALL
+            activeStatus: activeStatus,
             adType: "ALL", // 
             bylines: [],
             collationToken: crypto.randomUUID(), // Use browser's crypto API
@@ -729,6 +730,7 @@ class FacebookScraper {
                     platforms: result?.publisher_platform,
                     start_date: result?.start_date,
                     end_date: result?.end_date,
+                    active: result?.is_active
                 }));
             }
             console.info(`Found ${ads.length} ad snapshots for page ID: ${pageId}` + (cursor ? ` (Cursor: ${cursor})` : '(Initial fetch)') + `. Has next page: ${page_info.has_next_page}`);

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SpyDelta Competition Spy",
-  "version": "0.1.0",
-  "description": "Analyze the current page to find Facebook/Instagram links and check for Meta ads.",
+  "name": "Meta Ad Library Shortcut",
+  "version": "1.0.0",
+  "description": "Tired of digging through the Meta Ad Library every time you visit a competitor's site? This extension streamlines your ad research!",
   "permissions": [
     "activeTab",
     "scripting"
@@ -15,13 +15,19 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Analyze Page Ads",
+    "default_title": "Find Meta Ads",
     "default_icon": {
       "16": "assets/favicon.png",
       "32": "assets/favicon.png",
       "48": "assets/favicon.png",
       "128": "assets/favicon.png"
     }
+  },
+  "icons": {
+    "16": "assets/favicon.png",
+    "32": "assets/favicon.png",
+    "48": "assets/favicon.png",
+    "128": "assets/favicon.png"
   },
   "content_scripts": [
     {
@@ -46,4 +52,4 @@
       "matches": ["<all_urls>"]
     }
   ]
-} 
+}
