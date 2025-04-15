@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Meta Ad Library Shortcut",
+  "name": "Meta Ad Library Viewer",
   "version": "1.0.0",
-  "description": "Tired of digging through the Meta Ad Library every time you visit a competitor's site? This extension streamlines your ad research!",
+  "description": "A free tool that lets you view a brand's Meta ads directly on their site. Stop wasting time navigating the Meta Ad Library.",
   "permissions": [
     "activeTab",
     "scripting"
