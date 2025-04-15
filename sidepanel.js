@@ -704,7 +704,23 @@ function populateEuModal(details) {
             let totalMale = 0;
             let totalFemale = 0;
 
-            ageGenderBreakdowns.forEach(row => {
+            // --- NEW: Sort ageGenderBreakdowns numerically by age range start ---
+            const sortedBreakdowns = ageGenderBreakdowns.sort((a, b) => {
+                const getAgeStart = (range) => {
+                    if (!range) return 0; // Handle null/undefined ranges
+                    if (range.includes('+')) {
+                         // Treat '65+' as 65
+                         return parseInt(range.replace('+', ''), 10) || 0;
+                    }
+                    // Extract the first number (e.g., '18' from '18-24')
+                    return parseInt(range.split('-')[0], 10) || 0;
+                };
+                return getAgeStart(a.age_range) - getAgeStart(b.age_range);
+            });
+            // --- END NEW ---
+
+            // --- Iterate over the SORTED array ---
+            sortedBreakdowns.forEach(row => {
                  // Format numbers with commas, handle nulls
                  const formatNumber = (num) => num != null ? num.toLocaleString() : '-';
 
