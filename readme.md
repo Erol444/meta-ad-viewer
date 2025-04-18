@@ -11,7 +11,7 @@ This extension **only communicates with Meta Ad Library API** and does not commu
 
 ## Install
 
-[![Install from Chrome Web Store](images/install.jpg)](https://chromewebstore.google.com/detail/meta-ad-library-viewer/pfkdopffhebfaibjpedbgkmocbdlhcoa)
+[![Install from Chrome Web Store](images/Install.jpg)](https://chromewebstore.google.com/detail/meta-ad-library-viewer/pfkdopffhebfaibjpedbgkmocbdlhcoa)
 
 ## How it works
 
